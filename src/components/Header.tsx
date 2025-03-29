@@ -4,7 +4,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useUser } from "../context/UserContext";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import axios from "axios";
 import Link from "next/link";
 import { FaBars, FaCompass, FaTrophy } from "react-icons/fa";
@@ -16,16 +16,22 @@ export default function Header() {
   const [isWalletMenuOpen, setIsWalletMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
+  const [prevConnected, setPrevConnected] = useState(connected);
 
   useEffect(() => {
     console.log(
       "Header: useEffect running - connected:",
       connected,
-      "isWalletConnected:",
-      isWalletConnected,
+      "prevConnected:",
+      prevConnected,
+      "pathname:",
+      pathname,
       "publicKey:",
       publicKey?.toBase58()
     );
+
+    // Sync isWalletConnected
     if (connected !== isWalletConnected) {
       console.log("Header: Syncing isWalletConnected to", connected);
       setIsWalletConnected(connected);
@@ -35,11 +41,15 @@ export default function Header() {
       }
     }
 
-    if (!connected && publicKey === null) {
-      console.log("Header: Wallet disconnected, navigating to /explore");
-      router.push("/explore");
+    // Navigate to /create-token when connecting from home
+    if (connected && !prevConnected && pathname === "/") {
+      console.log("Header: Wallet connected from home, navigating to /create-token");
+      router.push("/create-token");
     }
-  }, [connected, isWalletConnected, publicKey, wallet]);
+
+    // Update prevConnected for next render
+    setPrevConnected(connected);
+  }, [connected, isWalletConnected, publicKey, wallet, pathname, prevConnected]);
 
   const registerUser = async (walletAddress: string) => {
     if (sessionStorage.getItem(`registered_${walletAddress}`)) {
@@ -63,7 +73,7 @@ export default function Header() {
     console.log("Header: Wallet button clicked - connected:", connected, "publicKey:", publicKey?.toBase58());
     if (connected && publicKey) {
       setIsWalletMenuOpen(!isWalletMenuOpen);
-      setIsMobileMenuOpen(false); // Close mobile menu if wallet menu opens
+      setIsMobileMenuOpen(false);
     } else {
       console.log("Header: Opening wallet modal from Connect Wallet");
       setIsWalletMenuOpen(false);
@@ -72,29 +82,30 @@ export default function Header() {
   };
 
   const handleDisconnect = async () => {
-    console.log("Header: Disconnect clicked");
+    console.log("Header: Disconnect clicked from", pathname);
     await disconnect();
     setIsWalletMenuOpen(false);
-    setIsMobileMenuOpen(false); // Close mobile menu on disconnect
-    router.push("/explore");
+    setIsMobileMenuOpen(false);
+    if (pathname !== "/" && pathname !== "/explore") {
+      console.log("Header: Disconnecting, navigating to /explore from", pathname);
+      router.push("/explore");
+    }
   };
 
   const toggleMobileMenu = () => {
     console.log("Header: Toggling mobile menu - current state:", isMobileMenuOpen);
     setIsMobileMenuOpen((prev) => !prev);
-    setIsWalletMenuOpen(false); // Close wallet menu if mobile menu opens
+    setIsWalletMenuOpen(false);
   };
 
   return (
     <header className="bg-gray-900 text-white p-4 flex justify-between items-center shadow-md relative">
       <div className="flex items-center gap-12">
-        {/* Logo - Links to Home */}
         <a href="/">
           <div className="w-9 h-9 lg:w-12 lg:h-12 max-w-[150px]">
             <img src="/logo.png" className="w-full h-full object-contain" alt="Logo" />
           </div>
         </a>
-        {/* Menu Links - Show only when wallet is not connected */}
         {!connected && (
           <nav className="flex gap-6">
             <Link href="/explore" className="hover:text-gray-300 font-medium flex items-center gap-2">
@@ -109,7 +120,6 @@ export default function Header() {
         )}
       </div>
       <div className="flex items-center gap-4">
-        {/* Wallet Button */}
         <div className="relative">
           <button
             onClick={handleWalletClick}
@@ -133,7 +143,6 @@ export default function Header() {
             </div>
           )}
         </div>
-        {/* Mobile Menu Button - Visible only on small screens */}
         <div className="relative">
           <button
             onClick={toggleMobileMenu}
@@ -141,7 +150,6 @@ export default function Header() {
           >
             <FaBars size={24} />
           </button>
-          {/* Mobile Menu Dropdown - Moved down a bit */}
           {isMobileMenuOpen && (
             <div className="md:hidden absolute top-full right-0 mt-4 w-48 bg-gray-800 text-white border border-gray-700 rounded-lg shadow-xl z-20">
               <ul className="flex flex-col">

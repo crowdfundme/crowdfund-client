@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { useRouter, useParams } from "next/navigation";
 import axios from "axios";
-import { useParams } from "next/navigation";
 
 interface Donation {
   fundId: { name: string; tokenSymbol: string };
@@ -18,8 +19,10 @@ interface UserProfile {
   donations: Donation[];
 }
 
-export default function Profile() {
+export default function UserProfile() {
+  const { publicKey } = useWallet();
   const { walletAddress } = useParams();
+  const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"info" | "donations">("info");
@@ -42,6 +45,10 @@ export default function Profile() {
     }
   }, [walletAddress]);
 
+  const handleUpdateClick = () => {
+    router.push(`/profile/${walletAddress}/edit`);
+  };
+
   if (loading) {
     return <div className="p-6">Loading profile...</div>;
   }
@@ -60,13 +67,17 @@ export default function Profile() {
       <div className="flex border-b mb-4">
         <button
           onClick={() => setActiveTab("info")}
-          className={`p-2 flex-1 text-center ${activeTab === "info" ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-600"}`}
+          className={`p-2 flex-1 text-center ${
+            activeTab === "info" ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-600"
+          }`}
         >
           User Info
         </button>
         <button
           onClick={() => setActiveTab("donations")}
-          className={`p-2 flex-1 text-center ${activeTab === "donations" ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-600"}`}
+          className={`p-2 flex-1 text-center ${
+            activeTab === "donations" ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-600"
+          }`}
         >
           Donation History
         </button>
@@ -84,10 +95,14 @@ export default function Profile() {
           <p className="text-gray-700 mb-2">
             <span className="font-semibold">Email:</span> {profile.email || "Not set"}
           </p>
-          <p className="text-gray-700">
-            <span className="font-semibold">Total Donated:</span>{" "}
-            {profile.totalDonatedSol.toFixed(2)} SOL
-          </p>
+          {publicKey && publicKey.toBase58() === walletAddress && (
+            <button
+              onClick={handleUpdateClick}
+              className="mt-4 bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+            >
+              Update Profile
+            </button>
+          )}
         </div>
       )}
 
