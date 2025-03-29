@@ -86,7 +86,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
       const { signature } = await provider.signAndSendTransaction(transaction);
       await connection.confirmTransaction(signature, "confirmed");
 
-      // Post donation to backend
+      // Update fund donation and user donation in one call
       const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/funds/${fundId}/donate`, {
         amount,
         donorWallet: publicKey.toBase58(),
@@ -95,7 +95,6 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
 
       alert(`Successfully donated ${amount.toFixed(2)} SOL! Transaction signature: ${signature}`);
 
-      // Trigger parent refresh
       if (onDonationSuccess) {
         onDonationSuccess();
       }

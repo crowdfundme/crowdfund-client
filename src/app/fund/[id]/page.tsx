@@ -82,6 +82,7 @@ export default function FundDetail() {
       const { signature } = await provider.signAndSendTransaction(transaction);
       await connection.confirmTransaction(signature, "confirmed");
 
+      // Update fund donation and user donation in one call
       const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/funds/${fund._id}/donate`, {
         amount: donationAmount,
         donorWallet: publicKey.toBase58(),
