@@ -86,7 +86,6 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
       const { signature } = await provider.signAndSendTransaction(transaction);
       await connection.confirmTransaction(signature, "confirmed");
 
-      // Update fund donation and user donation in one call
       const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/funds/${fundId}/donate`, {
         amount,
         donorWallet: publicKey.toBase58(),
@@ -166,7 +165,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
                   style={{ width: `${progress}%` }}
                 ></div>
               </div>
-              {status === "active" ? (
+              {status === "active" && publicKey ? ( // Show donation UI only if connected
                 <>
                   <div className="mb-4">
                     <label htmlFor={`donation-${fund._id}`} className="block text-sm font-medium text-gray-700">
@@ -223,6 +222,8 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
                       : `Donate ${(donationAmounts[fund._id] || minDonation).toFixed(2)} SOL`}
                   </button>
                 </>
+              ) : status === "active" ? (
+                <p className="text-gray-600">Connect wallet to donate</p>
               ) : (
                 <p className="text-green-500">
                   Completed! Token launched at: {fund.tokenAddress}

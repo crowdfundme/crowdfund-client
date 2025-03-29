@@ -13,16 +13,18 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const [isSidebarVisible, setIsSidebarVisible] = useState(false);
 
   useEffect(() => {
-    // Show sidebar if wallet is connected OR if not on homepage
-    setIsSidebarVisible(connected || pathname !== "/");
-  }, [connected, pathname]);
+    // Show sidebar only if wallet is connected (responsive hiding handled by Sidebar.tsx)
+    setIsSidebarVisible(connected);
+  }, [connected]);
 
   return (
     <div className="flex flex-col min-h-screen w-full">
       <Header />
       <div className="flex flex-1 w-full">
         {isSidebarVisible && <Sidebar />}
-        <main className={`flex-1 p-6 bg-white ${isSidebarVisible ? "rounded-tl-lg" : "rounded-lg"} shadow-md`}>
+        <main
+          className={`flex-1 p-6 bg-white ${isSidebarVisible ? "rounded-tl-lg" : "rounded-lg"} shadow-md`}
+        >
           {children}
         </main>
       </div>

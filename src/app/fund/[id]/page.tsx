@@ -82,7 +82,6 @@ export default function FundDetail() {
       const { signature } = await provider.signAndSendTransaction(transaction);
       await connection.confirmTransaction(signature, "confirmed");
 
-      // Update fund donation and user donation in one call
       const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/funds/${fund._id}/donate`, {
         amount: donationAmount,
         donorWallet: publicKey.toBase58(),
@@ -174,9 +173,7 @@ export default function FundDetail() {
 
       <div className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-xl font-semibold mb-4">Donate to {fund.name}</h2>
-        {!publicKey ? (
-          <p className="text-red-500">Please connect your wallet to donate.</p>
-        ) : (
+        {publicKey ? (
           <>
             <div className="mb-4">
               <label htmlFor="donation-slider" className="block text-sm font-medium text-gray-700">
@@ -222,6 +219,8 @@ export default function FundDetail() {
               Donate {donationAmount.toFixed(2)} SOL
             </button>
           </>
+        ) : (
+          <p className="text-gray-600">Please connect your wallet to donate.</p>
         )}
       </div>
     </div>
