@@ -16,6 +16,9 @@ export default function Sidebar() {
           <li>
             <Link href="/create-token" className="block p-3 hover:bg-gray-300 rounded-lg font-medium text-gray-700">Create Fund</Link>
           </li>
+          <li>
+            <Link href="/leaderboard" className="block p-3 hover:bg-gray-300 rounded-lg font-medium text-gray-700">Leaderboard</Link>
+          </li>
         </ul>
       </nav>
     </aside>

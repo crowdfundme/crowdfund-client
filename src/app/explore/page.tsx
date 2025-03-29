@@ -14,12 +14,14 @@ export default function Explore() {
     const fetchFunds = async () => {
       try {
         setLoading(true);
-        // Fetch active funds
+        console.log("Fetching active funds...");
         const activeResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/funds?status=active`);
+        console.log("Active funds response:", activeResponse.data);
         setActiveFunds(activeResponse.data);
 
-        // Fetch completed funds
+        console.log("Fetching completed funds...");
         const completedResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/funds?status=completed`);
+        console.log("Completed funds response:", completedResponse.data);
         setCompletedFunds(completedResponse.data);
       } catch (error) {
         console.error("Failed to fetch funds:", error);
@@ -33,18 +35,16 @@ export default function Explore() {
 
   return (
     <div className="p-6">
-      {/* Search Bar */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Crowdfunds</h1>
         <input
           type="text"
           placeholder="Search by ID"
           className="border border-gray-300 rounded-lg p-2 w-48"
-          disabled // Placeholder for future search functionality
+          disabled
         />
       </div>
 
-      {/* Active Crowdfunds */}
       {loading ? (
         <p className="text-gray-600">Loading crowdfunds...</p>
       ) : activeFunds.length === 0 ? (
@@ -53,7 +53,6 @@ export default function Explore() {
         <FundList funds={activeFunds} status="active" />
       )}
 
-      {/* Completed Crowdfunds */}
       <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Completed Crowdfunds</h2>
       {loading ? (
         <p className="text-gray-600">Loading completed crowdfunds...</p>
