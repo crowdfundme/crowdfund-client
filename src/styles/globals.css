@@ -91,7 +91,7 @@ button.wallet-button.bg-green-500:hover {
   width: 100% !important;
   height: 100% !important;
   z-index: 1000 !important;
-  background: rgba(0, 0, 0, 0.75) !important; /* Full-screen overlay */
+  background: rgba(0, 0, 0, 0.75) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -101,40 +101,40 @@ button.wallet-button.bg-green-500:hover {
   position: absolute !important;
   top: 50% !important;
   left: 50% !important;
-  transform: translate(-50%, -50%) !important; /* Center exactly */
+  transform: translate(-50%, -50%) !important;
   width: 100% !important;
-  max-width: 360px !important; /* Compact width */
-  height: auto !important; /* Let content dictate height */
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+  max-width: 360px !important;
+  height: auto !important;
 }
 
 .wallet-adapter-modal-content {
-  background: #1f2937 !important; /* Gray-800 */
+  background: #1f2937 !important;
   border-radius: 1rem !important;
   padding: 1rem !important;
   box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2) !important;
   width: 100% !important;
-  max-width: 360px !important; /* Match wrapper */
-  max-height: 400px !important; /* Fixed height for 5+ wallets */
-  overflow-y: auto !important; /* Scroll if needed */
+  max-width: 360px !important;
+  max-height: 400px !important; /* Enforce max height */
+  overflow-y: auto !important; /* Force scroll */
   position: relative !important;
   z-index: 1001 !important;
 }
 
 .wallet-adapter-modal-title {
-  color: #e5e7eb !important; /* Gray-200 */
+  color: #e5e7eb !important;
   font-size: 1.25rem !important;
   font-weight: 600 !important;
   margin-bottom: 1rem !important;
   text-align: center !important;
 }
 
+/* Explicitly constrain the list */
 .wallet-adapter-modal-list {
   list-style: none !important;
   padding: 0 !important;
   margin: 0 !important;
+  max-height: 300px !important; /* Leave room for title */
+  overflow-y: auto !important; /* Scroll within list */
 }
 
 .wallet-adapter-modal-list-item {
@@ -151,12 +151,12 @@ button.wallet-button.bg-green-500:hover {
 }
 
 .wallet-adapter-modal-list-item img {
-  width: 24px !important; /* Smaller logos */
+  width: 24px !important;
   height: 24px !important;
   margin-right: 1rem !important;
 }
 
 .wallet-adapter-modal-list-item span {
-  color: #e5e7eb !important; /* Gray-200 */
+  color: #e5e7eb !important;
   font-size: 1rem !important;
 }
