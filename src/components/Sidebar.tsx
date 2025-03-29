@@ -8,7 +8,7 @@ export default function Sidebar() {
       <nav>
         <ul className="space-y-3">
           <li>
-            <Link href="/" className="block p-3 hover:bg-gray-300 rounded-lg font-medium text-gray-700">Home</Link>
+            <Link href="/explore" className="block p-3 hover:bg-gray-300 rounded-lg font-medium text-gray-700">Home</Link>
           </li>
           <li>
             <Link href="/explore" className="block p-3 hover:bg-gray-300 rounded-lg font-medium text-gray-700">Explore</Link>

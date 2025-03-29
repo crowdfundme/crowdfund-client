@@ -1,8 +1,10 @@
 import { Connection, clusterApiUrl } from "@solana/web3.js";
 
-export const connection = new Connection(
-  process.env.NEXT_PUBLIC_SOLANA_NETWORK === "mainnet"
-    ? clusterApiUrl("mainnet-beta")
-    : clusterApiUrl("devnet"),
-  "confirmed"
-);
+// Function to get the Solana connection (created at runtime)
+export const getConnection = () => {
+  const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK || "devnet";
+  return new Connection(
+    network === "mainnet" ? clusterApiUrl("mainnet-beta") : clusterApiUrl("devnet"),
+    "confirmed"
+  );
+};

@@ -15,7 +15,7 @@ export default function Header() {
   const router = useRouter();
 
   useEffect(() => {
-    console.log("Header: Wallet state - connected:", connected, "publicKey:", publicKey?.toBase58(), "wallet:", wallet?.adapter.name);
+    console.log("Header: useEffect running - connected:", connected, "isWalletConnected:", isWalletConnected, "publicKey:", publicKey?.toBase58());
     if (connected !== isWalletConnected) {
       console.log("Header: Syncing isWalletConnected to", connected);
       setIsWalletConnected(connected);
@@ -25,16 +25,23 @@ export default function Header() {
         registerUser(publicKey.toBase58());
       }
     }
-  }, [connected, isWalletConnected, setIsWalletConnected, publicKey, wallet]);
+  }, [connected, isWalletConnected, publicKey, wallet]);
 
   const registerUser = async (walletAddress: string) => {
+    if (sessionStorage.getItem(`registered_${walletAddress}`)) {
+      console.log("Header: User already registered for wallet:", walletAddress);
+      return;
+    }
+
     try {
+      console.log("Header: Registering user with wallet:", walletAddress);
       const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/users/register`, {
         walletAddress,
       });
-      console.log("User registered:", response.data);
+      console.log("Header: User registered:", response.data);
+      sessionStorage.setItem(`registered_${walletAddress}`, "true");
     } catch (error) {
-      console.error("Failed to register user:", error);
+      console.error("Header: Failed to register user:", error);
     }
   };
 
@@ -53,13 +60,13 @@ export default function Header() {
     console.log("Header: Disconnect clicked");
     await disconnect();
     setIsWalletMenuOpen(false);
-    router.push("/");
+    router.push("/explore");
   };
 
   return (
     <header className="bg-gray-900 text-white p-4 flex justify-between items-center shadow-md">
       <div className="flex items-center gap-2">
-        <a href="/">
+        <a href="/explore">
           <div className="w-9 h-9 lg:w-12 lg:h-12 max-w-[150px]">
             <img src="/logo.png" className="w-full h-full object-contain" alt="Logo" />
           </div>
@@ -68,7 +75,7 @@ export default function Header() {
       <div className="relative">
         <button
           onClick={handleWalletClick}
-          className="solana-wallet-button" // Updated class
+          className="solana-wallet-button"
           disabled={connecting}
         >
           {connecting

@@ -9,27 +9,30 @@ export default function Explore() {
   const [activeFunds, setActiveFunds] = useState<Fund[]>([]);
   const [completedFunds, setCompletedFunds] = useState<Fund[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchFunds = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      console.log("Fetching active funds...");
+      const activeResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/funds?status=active`);
+      console.log("Active funds response:", activeResponse.data);
+      setActiveFunds(activeResponse.data);
+
+      console.log("Fetching completed funds...");
+      const completedResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/funds?status=completed`);
+      console.log("Completed funds response:", completedResponse.data);
+      setCompletedFunds(completedResponse.data);
+    } catch (error) {
+      console.error("Failed to fetch funds:", error);
+      setError("Failed to fetch funds. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchFunds = async () => {
-      try {
-        setLoading(true);
-        console.log("Fetching active funds...");
-        const activeResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/funds?status=active`);
-        console.log("Active funds response:", activeResponse.data);
-        setActiveFunds(activeResponse.data);
-
-        console.log("Fetching completed funds...");
-        const completedResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/funds?status=completed`);
-        console.log("Completed funds response:", completedResponse.data);
-        setCompletedFunds(completedResponse.data);
-      } catch (error) {
-        console.error("Failed to fetch funds:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchFunds();
   }, []);
 
@@ -45,12 +48,14 @@ export default function Explore() {
         />
       </div>
 
+      {error && <p className="text-red-500 mb-4">{error}</p>}
+
       {loading ? (
         <p className="text-gray-600">Loading crowdfunds...</p>
       ) : activeFunds.length === 0 ? (
         <p className="text-gray-600 mb-6">No active crowdfunds available.</p>
       ) : (
-        <FundList funds={activeFunds} status="active" />
+        <FundList funds={activeFunds} status="active" onDonationSuccess={fetchFunds} />
       )}
 
       <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Completed Crowdfunds</h2>
@@ -59,7 +64,7 @@ export default function Explore() {
       ) : completedFunds.length === 0 ? (
         <p className="text-gray-600">No completed crowdfunds yet.</p>
       ) : (
-        <FundList funds={completedFunds} status="completed" />
+        <FundList funds={completedFunds} status="completed" onDonationSuccess={fetchFunds} />
       )}
     </div>
   );
