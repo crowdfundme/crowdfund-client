@@ -3,6 +3,7 @@ import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
 import Footer from "../components/Footer";
 import WalletProviderComponent from "../components/WalletProvider";
+import "@solana/wallet-adapter-react-ui/styles.css"; // Add this
 
 export default function RootLayout({
   children,
