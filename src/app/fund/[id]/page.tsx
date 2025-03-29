@@ -18,6 +18,7 @@ export default function FundDetail() {
   const [maxDonation, setMaxDonation] = useState<number>(10);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [donating, setDonating] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchFundAndLimits = async () => {
@@ -56,6 +57,7 @@ export default function FundDetail() {
 
     try {
       setError(null);
+      setDonating(true);
 
       const connection = getConnection();
       const solBalance = await connection.getBalance(publicKey);
@@ -98,7 +100,13 @@ export default function FundDetail() {
       } else {
         setError(err.response?.data?.error || errorMsg);
       }
+    } finally {
+      setDonating(false);
     }
+  };
+
+  const handleBack = () => {
+    router.back(); // Navigate to the previous page in history
   };
 
   if (loading) {
@@ -114,7 +122,15 @@ export default function FundDetail() {
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-900 mb-4">{fund.name}</h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-3xl font-bold text-gray-900">{fund.name}</h1>
+        <button
+          onClick={handleBack}
+          className="bg-gray-500 hover:bg-gray-600 text-white p-2 rounded"
+        >
+          Back
+        </button>
+      </div>
       <div className="border border-gray-300 rounded-lg p-4 mb-6">
         <div className="w-full h-48 bg-gray-900 rounded-lg mb-4"></div>
         <p className="text-sm text-gray-700">
@@ -213,10 +229,32 @@ export default function FundDetail() {
             {error && <p className="text-red-500 mb-4">{error}</p>}
             <button
               onClick={handleDonation}
-              className="w-full bg-green-500 hover:bg-green-600 text-white p-2 rounded"
-              disabled={!publicKey}
+              className="w-full bg-green-500 hover:bg-green-600 text-white p-2 rounded flex items-center justify-center"
+              disabled={!publicKey || donating}
             >
-              Donate {donationAmount.toFixed(2)} SOL
+              {donating ? (
+                <svg
+                  className="animate-spin h-5 w-5 mr-2 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  ></path>
+                </svg>
+              ) : null}
+              {donating ? "Donating..." : `Donate ${donationAmount.toFixed(2)} SOL`}
             </button>
           </>
         ) : (

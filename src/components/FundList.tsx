@@ -165,7 +165,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
                   style={{ width: `${progress}%` }}
                 ></div>
               </div>
-              {status === "active" && publicKey ? ( // Show donation UI only if connected
+              {status === "active" && publicKey ? (
                 <>
                   <div className="mb-4">
                     <label htmlFor={`donation-${fund._id}`} className="block text-sm font-medium text-gray-700">
@@ -190,44 +190,65 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
                       className="block w-full p-2 border rounded mt-1"
                     />
                   </div>
-                  <button
-                    onClick={() => handleDonation(fund._id, fund.fundWalletAddress)}
-                    className="w-full bg-green-500 hover:bg-green-600 text-white p-2 rounded flex items-center justify-center"
-                    disabled={!publicKey || donating === fund._id}
-                  >
-                    {donating === fund._id ? (
-                      <svg
-                        className="animate-spin h-5 w-5 mr-2 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                        ></path>
-                      </svg>
-                    ) : null}
-                    {donating === fund._id
-                      ? "Donating..."
-                      : `Donate ${(donationAmounts[fund._id] || minDonation).toFixed(2)} SOL`}
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleDonation(fund._id, fund.fundWalletAddress)}
+                      className="flex-1 bg-green-500 hover:bg-green-600 text-white p-2 rounded flex items-center justify-center"
+                      disabled={!publicKey || donating === fund._id}
+                    >
+                      {donating === fund._id ? (
+                        <svg
+                          className="animate-spin h-5 w-5 mr-2 text-white"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                          ></path>
+                        </svg>
+                      ) : null}
+                      {donating === fund._id
+                        ? "Donating..."
+                        : `Donate ${(donationAmounts[fund._id] || minDonation).toFixed(2)} SOL`}
+                    </button>
+                    <Link href={`/fund/${fund._id}`} className="flex-1">
+                      <button className="w-full bg-blue-500 hover:bg-blue-600 text-white p-2 rounded">
+                        View
+                      </button>
+                    </Link>
+                  </div>
                 </>
               ) : status === "active" ? (
-                <p className="text-gray-600">Connect wallet to donate</p>
+                <div className="flex gap-2">
+                  <p className="flex-1 text-gray-600">Connect wallet to donate</p>
+                  <Link href={`/fund/${fund._id}`} className="flex-1">
+                    <button className="w-full bg-blue-500 hover:bg-blue-600 text-white p-2 rounded">
+                      View
+                    </button>
+                  </Link>
+                </div>
               ) : (
-                <p className="text-green-500">
-                  Completed! Token launched at: {fund.tokenAddress}
-                </p>
+                <div className="flex gap-2">
+                  <p className="flex-1 text-green-500">
+                    Completed! Token launched at: {fund.tokenAddress}
+                  </p>
+                  <Link href={`/fund/${fund._id}`} className="flex-1">
+                    <button className="w-full bg-blue-500 hover:bg-blue-600 text-white p-2 rounded">
+                      View
+                    </button>
+                  </Link>
+                </div>
               )}
             </div>
           );
