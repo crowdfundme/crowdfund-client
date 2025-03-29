@@ -34,16 +34,13 @@ export default function Home() {
     }
   };
 
-  const handleTestModal = () => {
-    console.log("Home: Test modal button clicked");
-    setVisible(true);
-  };
-
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-12rem)] px-4 flex-col gap-4">
+      <h1 className="text-3xl font-bold text-gray-900">Welcome to Crowdfund</h1>
+      <p className="text-gray-600 mb-4">Connect your Solana wallet to get started.</p>
       <button
         onClick={handleWalletClick}
-        className="wallet-button"
+        className="solana-wallet-button"
         disabled={connecting}
       >
         {connecting
@@ -51,12 +48,6 @@ export default function Home() {
           : connected && publicKey
           ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}`
           : "Connect Wallet"}
-      </button>
-      <button
-        onClick={handleTestModal}
-        className="wallet-button bg-green-500 hover:bg-green-600"
-      >
-        Test Modal
       </button>
     </div>
   );

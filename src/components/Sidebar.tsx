@@ -11,7 +11,10 @@ export default function Sidebar() {
             <Link href="/" className="block p-3 hover:bg-gray-300 rounded-lg font-medium text-gray-700">Home</Link>
           </li>
           <li>
-            <Link href="/funds" className="block p-3 hover:bg-gray-300 rounded-lg font-medium text-gray-700">Funds</Link>
+            <Link href="/explore" className="block p-3 hover:bg-gray-300 rounded-lg font-medium text-gray-700">Explore</Link>
+          </li>
+          <li>
+            <Link href="/create-token" className="block p-3 hover:bg-gray-300 rounded-lg font-medium text-gray-700">Create Fund</Link>
           </li>
         </ul>
       </nav>
