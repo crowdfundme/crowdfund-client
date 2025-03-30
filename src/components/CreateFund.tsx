@@ -6,8 +6,9 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { Transaction, SystemProgram, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { getConnection } from "../lib/solana";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { toast, Toaster } from "sonner";
 
-// Add a counter to track renders
 let renderCount = 0;
 
 export default function CreateFund() {
@@ -18,7 +19,6 @@ export default function CreateFund() {
   const router = useRouter();
   const [form, setForm] = useState({
     name: "",
-    image: "",
     tokenName: "",
     tokenSymbol: "",
     tokenDescription: "",
@@ -28,35 +28,32 @@ export default function CreateFund() {
     tokenTelegram: "",
     tokenWebsite: "",
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [creationFee, setCreationFee] = useState<number | null>(null);
   const [loadingFee, setLoadingFee] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const isMounted = useRef(true);
   const hasFetched = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     console.log("CreateFund: useEffect running...");
     isMounted.current = true;
 
     const fetchFee = async () => {
-      if (hasFetched.current) {
-        console.log("CreateFund: Fee already fetched, skipping...");
-        return;
-      }
+      if (hasFetched.current) return;
 
       if (!process.env.NEXT_PUBLIC_API_URL) {
         if (isMounted.current) {
-          setError("API URL is not configured. Please contact support.");
+          toast.error("API URL is not configured. Please contact support.");
           setLoadingFee(false);
         }
         return;
       }
 
       try {
-        console.log("CreateFund: Fetching creation fee...");
         setLoadingFee(true);
         const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/funds/fee`);
-        console.log("CreateFund: Fee response:", response.data);
         if (isMounted.current) {
           setCreationFee(response.data.creationFee);
           hasFetched.current = true;
@@ -64,13 +61,11 @@ export default function CreateFund() {
       } catch (error) {
         console.error("CreateFund: Failed to fetch creation fee:", error);
         if (isMounted.current) {
-          setError("Failed to load creation fee. Please try again later.");
+          toast.error("Failed to load creation fee. Please try again later.");
           setCreationFee(null);
         }
       } finally {
-        if (isMounted.current) {
-          setLoadingFee(false);
-        }
+        if (isMounted.current) setLoadingFee(false);
       }
     };
 
@@ -82,38 +77,40 @@ export default function CreateFund() {
     };
   }, []);
 
+  const handleImageClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+      return () => URL.revokeObjectURL(previewUrl);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!publicKey || creationFee === null) {
-      setError("Cannot create fund: Creation fee not loaded or wallet not connected.");
+      toast.error("Cannot create fund: Creation fee not loaded or wallet not connected.");
       return;
     }
 
-    // Validate target wallet
     try {
       new PublicKey(form.targetWallet);
     } catch (err) {
-      setError("Invalid target wallet address. Please enter a valid Solana wallet address.");
+      toast.error("Invalid target wallet address. Please enter a valid Solana wallet address.");
       return;
     }
 
-    // Validate image URL (optional field)
-    if (form.image) {
-      const urlPattern = /^(https?:\/\/.*\.(?:png|jpg|jpeg|gif|webp|svg))$/i;
-      if (!urlPattern.test(form.image)) {
-        setError("Invalid image URL. Please enter a valid URL (e.g., https://example.com/image.png) or leave it blank.");
-        return;
-      }
-    }
-
     if (!process.env.NEXT_PUBLIC_WEBSITE_WALLET) {
-      setError("Website wallet address is not configured. Please contact support.");
+      toast.error("Website wallet address is not configured. Please contact support.");
       return;
     }
 
     try {
-      setError(null);
-
       const connection = getConnection();
       const solBalance = await connection.getBalance(publicKey);
       if (solBalance < 5000) {
@@ -146,10 +143,26 @@ export default function CreateFund() {
         txSignature: signature,
       });
 
-      alert(`Fund created successfully! Transaction signature: ${signature}`);
+      const fundId = response.data._id;
+
+      if (imageFile) {
+        const formData = new FormData();
+        formData.append("image", imageFile);
+        await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL}/token-images/${fundId}/token-image`,
+          formData,
+          {
+            headers: { "Content-Type": "multipart/form-data" },
+          }
+        );
+      }
+
+      toast.success(`Fund created successfully! Transaction signature: ${signature}`, {
+        duration: 3000,
+        onAutoClose: () => router.push("/explore"),
+      });
       setForm({
         name: "",
-        image: "",
         tokenName: "",
         tokenSymbol: "",
         tokenDescription: "",
@@ -159,133 +172,193 @@ export default function CreateFund() {
         tokenTelegram: "",
         tokenWebsite: "",
       });
-      router.push("/explore");
+      setImageFile(null);
+      setImagePreview(null);
     } catch (error: any) {
       console.error(error);
       const errorMsg = error.message || "Failed to create fund.";
       if (errorMsg.includes("User rejected the request") || (error.code && error.code === 4001)) {
-        setError("Transaction canceled. Please try again if you wish to proceed.");
+        toast.info("Transaction canceled. Please try again if you wish to proceed.", { duration: 5000 });
       } else {
-        setError(error.response?.data?.error || errorMsg);
+        toast.error(error.response?.data?.error || errorMsg, { duration: 5000 });
       }
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mb-8 max-w-md mx-auto bg-white p-6 rounded-lg shadow-md">
-      {error && <p className="text-red-500 mb-4">{error}</p>}
-      <input
-        type="text"
-        placeholder="Fund Name"
-        value={form.name}
-        onChange={(e) => setForm({ ...form, name: e.target.value })}
-        className="block w-full mb-4 p-2 border rounded"
-        required
-      />
-      <input
-        type="text"
-        placeholder="Image URL"
-        value={form.image}
-        onChange={(e) => setForm({ ...form, image: e.target.value })}
-        className="block w-full mb-4 p-2 border rounded"
-      />
-      <input
-        type="text"
-        placeholder="Token Name"
-        value={form.tokenName}
-        onChange={(e) => setForm({ ...form, tokenName: e.target.value })}
-        className="block w-full mb-4 p-2 border rounded"
-        required
-      />
-      <input
-        type="text"
-        placeholder="Token Symbol"
-        value={form.tokenSymbol}
-        onChange={(e) => setForm({ ...form, tokenSymbol: e.target.value })}
-        className="block w-full mb-4 p-2 border rounded"
-        required
-      />
-      <textarea
-        placeholder="Token Description"
-        value={form.tokenDescription}
-        onChange={(e) => setForm({ ...form, tokenDescription: e.target.value })}
-        className="block w-full mb-4 p-2 border rounded"
-        required
-      />
-      <select
-        value={form.targetPercentage}
-        onChange={(e) => setForm({ ...form, targetPercentage: Number(e.target.value) })}
-        className="block w-full mb-4 p-2 border rounded"
-      >
-        <option value={5}>5% (1.480938417 SOL)</option>
-        <option value={10}>10% (3.114080165 SOL)</option>
-        <option value={10}>10% (3.114080165 SOL)</option>
-        <option value={25}>25% (9.204131229 SOL)</option>
-        <option value={50}>50% (26.439790577 SOL)</option>
-        <option value={75}>75% (70.356037153 SOL)</option>
-      </select>
-      <input
-        type="text"
-        placeholder="Target Wallet Address"
-        value={form.targetWallet}
-        onChange={(e) => setForm({ ...form, targetWallet: e.target.value })}
-        className="block w-full mb-4 p-2 border rounded"
-        required
-      />
-      <input
-        type="text"
-        placeholder="Twitter URL (optional)"
-        value={form.tokenTwitter}
-        onChange={(e) => setForm({ ...form, tokenTwitter: e.target.value })}
-        className="block w-full mb-4 p-2 border rounded"
-      />
-      <input
-        type="text"
-        placeholder="Telegram URL (optional)"
-        value={form.tokenTelegram}
-        onChange={(e) => setForm({ ...form, tokenTelegram: e.target.value })}
-        className="block w-full mb-4 p-2 border rounded"
-      />
-      <input
-        type="text"
-        placeholder="Website URL (optional)"
-        value={form.tokenWebsite}
-        onChange={(e) => setForm({ ...form, tokenWebsite: e.target.value })}
-        className="block w-full mb-4 p-2 border rounded"
-      />
-      <button
-        type="submit"
-        className="w-full bg-blue-500 hover:bg-blue-600 text-white p-2 rounded flex items-center justify-center"
-        disabled={loadingFee || creationFee === null}
-      >
-        {loadingFee && (
-          <svg
-            className="animate-spin h-5 w-5 mr-2 text-white"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
+    <div className="mb-8 w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+      <Toaster position="bottom-right" richColors />
+      <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-8 text-center">Start your Crowdfund</h1>
+      <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg w-full max-w-2xl mx-auto">
+        <div className="mb-6">
+          <div
+            className={`w-full h-64 sm:h-72 bg-gray-200 rounded-lg flex items-center justify-center cursor-pointer overflow-hidden hover:bg-gray-300 ${
+              !imagePreview ? "border-2 border-dashed border-gray-300" : "border-none"
+            }`}
+            onClick={handleImageClick}
           >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            ></circle>
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-            ></path>
-          </svg>
-        )}
-        {loadingFee
-          ? "Loading Fee..."
-          : creationFee !== null
-          ? `Create Fund and Send ${creationFee} SOL`
-          : "Unable to Load Fee"}
-      </button>
-    </form>
+            {imagePreview ? (
+              <Image
+                src={imagePreview}
+                alt="Preview"
+                width={672}
+                height={256}
+                className="w-full h-full object-cover rounded-lg"
+              />
+            ) : (
+              <span className="text-gray-500 text-center px-4">Click to Select Image</span>
+            )}
+          </div>
+          <input
+            type="file"
+            accept="image/*"
+            ref={fileInputRef}
+            onChange={handleImageChange}
+            className="hidden"
+          />
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Fund Name</label>
+          <input
+            type="text"
+            placeholder="Enter fund name"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            className="block w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            required
+          />
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Token Name</label>
+          <input
+            type="text"
+            placeholder="Enter token name"
+            value={form.tokenName}
+            onChange={(e) => setForm({ ...form, tokenName: e.target.value })}
+            className="block w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            required
+          />
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Ticker</label>
+          <input
+            type="text"
+            placeholder="Enter Ticker"
+            value={form.tokenSymbol}
+            onChange={(e) => setForm({ ...form, tokenSymbol: e.target.value })}
+            className="block w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            required
+          />
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+          <textarea
+            placeholder="Enter description"
+            value={form.tokenDescription}
+            onChange={(e) => setForm({ ...form, tokenDescription: e.target.value })}
+            className="block w-full p-2 border rounded-md h-32 resize-y focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            required
+          />
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Supply % Being Raised</label>
+          <select
+            value={form.targetPercentage}
+            onChange={(e) => setForm({ ...form, targetPercentage: Number(e.target.value) })}
+            className="block w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value={5}>5% (1.480938417 SOL)</option>
+            <option value={10}>10% (3.114080165 SOL)</option>
+            <option value={25}>25% (9.204131229 SOL)</option>
+            <option value={50}>50% (26.439790577 SOL)</option>
+            <option value={75}>75% (70.356037153 SOL)</option>
+          </select>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Solana Wallet</label>
+          <input
+            type="text"
+            placeholder="Enter Solana Wallet address"
+            value={form.targetWallet}
+            onChange={(e) => setForm({ ...form, targetWallet: e.target.value })}
+            className="block w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            required
+          />
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Twitter URL (optional)</label>
+          <input
+            type="text"
+            placeholder="Enter Twitter URL"
+            value={form.tokenTwitter}
+            onChange={(e) => setForm({ ...form, tokenTwitter: e.target.value })}
+            className="block w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Telegram URL (optional)</label>
+          <input
+            type="text"
+            placeholder="Enter Telegram URL"
+            value={form.tokenTelegram}
+            onChange={(e) => setForm({ ...form, tokenTelegram: e.target.value })}
+            className="block w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Website URL (optional)</label>
+          <input
+            type="text"
+            placeholder="Enter website URL"
+            value={form.tokenWebsite}
+            onChange={(e) => setForm({ ...form, tokenWebsite: e.target.value })}
+            className="block w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
+        <button
+          type="submit"
+          className="w-full bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-md flex items-center justify-center transition-colors duration-200"
+          disabled={loadingFee || creationFee === null}
+        >
+          {loadingFee && (
+            <svg
+              className="animate-spin h-5 w-5 mr-2 text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              ></path>
+            </svg>
+          )}
+          {loadingFee
+            ? "Loading Fee..."
+            : creationFee !== null
+            ? `Submit`
+            : "Unable to Load Fee"}
+        </button>
+      </form>
+    </div>
   );
 }

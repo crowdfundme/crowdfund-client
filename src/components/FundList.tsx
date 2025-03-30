@@ -22,10 +22,10 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
   const [maxDonation, setMaxDonation] = useState<number>(10);
   const [error, setError] = useState<string | null>(null);
   const [donating, setDonating] = useState<string | null>(null);
-  const [imageErrors, setImageErrors] = useState<{ [key: string]: boolean }>({});
+  const [imageUrls, setImageUrls] = useState<{ [key: string]: string }>({}); // Store image URLs
 
   useEffect(() => {
-    const fetchLimits = async () => {
+    const fetchLimitsAndImages = async () => {
       try {
         const limitsResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/funds/fee`);
         setMinDonation(limitsResponse.data.minDonation);
@@ -36,13 +36,28 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
           return acc;
         }, {});
         setDonationAmounts(initialAmounts);
+
+        // Fetch image URLs for each fund
+        const imagePromises = funds.map((fund) =>
+          fund.image
+            ? axios.get(`${process.env.NEXT_PUBLIC_API_URL}/token-images/${fund._id}/token-image`)
+            : Promise.resolve(null)
+        );
+        const imageResponses = await Promise.all(imagePromises);
+        const urls = imageResponses.reduce((acc: { [key: string]: string }, res, idx) => {
+          if (res && res.data.url) {
+            acc[funds[idx]._id] = res.data.url;
+          }
+          return acc;
+        }, {});
+        setImageUrls(urls);
       } catch (err) {
-        console.error("Failed to fetch donation limits:", err);
-        setError("Failed to load donation limits. Using defaults.");
+        console.error("Failed to fetch donation limits or images:", err);
+        setError("Failed to load donation limits or images. Using defaults.");
       }
     };
 
-    fetchLimits();
+    fetchLimitsAndImages();
   }, [funds]);
 
   const handleDonation = async (fundId: string, fundWalletAddress: string) => {
@@ -110,16 +125,6 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
     }
   };
 
-  const isValidImageSrc = (src: string): boolean => {
-    const urlPattern = /^(https?:\/\/.*\.(?:png|jpg|jpeg|gif|webp|svg))$/i;
-    const relativePathPattern = /^\/.+/;
-    return urlPattern.test(src) || relativePathPattern.test(src);
-  };
-
-  const handleImageError = useCallback((fundId: string) => {
-    setImageErrors((prev) => ({ ...prev, [fundId]: true }));
-  }, []);
-
   if (funds.length === 0) {
     return null;
   }
@@ -130,22 +135,20 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {funds.map((fund) => {
           const progress = Math.min((fund.currentDonatedSol / fund.targetSolAmount) * 100, 100);
-          const hasImageError = imageErrors[fund._id];
-          const isImageValid = fund.image && isValidImageSrc(fund.image);
+          const imageUrl = imageUrls[fund._id];
 
           return (
             <div key={fund._id} className="bg-white p-4 rounded-lg shadow-md">
               <Link href={`/fund/${fund._id}`}>
                 <h2 className="text-xl font-semibold text-gray-900 mb-2">{fund.name}</h2>
               </Link>
-              {isImageValid && !hasImageError ? (
+              {imageUrl ? (
                 <Image
-                  src={fund.image}
+                  src={imageUrl}
                   alt={fund.name}
                   width={300}
                   height={150}
                   className="w-full h-40 object-cover rounded-lg mb-4"
-                  onError={() => handleImageError(fund._id)}
                 />
               ) : (
                 <div className="w-full h-40 bg-gray-200 rounded-lg mb-4 flex items-center justify-center">

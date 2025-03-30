@@ -20,14 +20,8 @@ export default function CreateToken() {
 
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-bold mb-4">Create a Fund</h2>
       {connected && publicKey ? (
-        <>
-          <p className="text-gray-600 mb-6">
-            Connected as: {publicKey.toBase58().slice(0, 4)}...{publicKey.toBase58().slice(-4)}
-          </p>
-          <CreateFund />
-        </>
+        <CreateFund />
       ) : (
         <p>Please connect your wallet to create a fund.</p>
       )}

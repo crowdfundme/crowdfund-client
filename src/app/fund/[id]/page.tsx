@@ -7,12 +7,14 @@ import { Transaction, SystemProgram, LAMPORTS_PER_SOL, PublicKey } from "@solana
 import { getConnection } from "../../../lib/solana";
 import { useRouter, useParams } from "next/navigation";
 import { Fund } from "../../../types";
+import Image from "next/image";
 
 export default function FundDetail() {
   const { id } = useParams();
   const { publicKey } = useWallet();
   const router = useRouter();
   const [fund, setFund] = useState<Fund | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null); // State for image URL
   const [donationAmount, setDonationAmount] = useState<number>(0.01);
   const [minDonation, setMinDonation] = useState<number>(0.01);
   const [maxDonation, setMaxDonation] = useState<number>(10);
@@ -36,8 +38,16 @@ export default function FundDetail() {
           throw new Error("Fund not found or not active");
         }
         setFund(fundData);
+
+        // Fetch image URL
+        if (fundData.image) {
+          const imageResponse = await axios.get(
+            `${process.env.NEXT_PUBLIC_API_URL}/token-images/${fundData._id}/token-image`
+          );
+          setImageUrl(imageResponse.data.url);
+        }
       } catch (err) {
-        console.error("Failed to fetch fund or limits:", err);
+        console.error("Failed to fetch fund, limits, or image:", err);
         setError("Failed to load fund details. Please try again.");
       } finally {
         setLoading(false);
@@ -106,7 +116,7 @@ export default function FundDetail() {
   };
 
   const handleBack = () => {
-    router.back(); // Navigate to the previous page in history
+    router.back();
   };
 
   if (loading) {
@@ -132,7 +142,19 @@ export default function FundDetail() {
         </button>
       </div>
       <div className="border border-gray-300 rounded-lg p-4 mb-6">
-        <div className="w-full h-48 bg-gray-900 rounded-lg mb-4"></div>
+        {imageUrl ? (
+          <Image
+            src={imageUrl}
+            alt={fund.name}
+            width={400}
+            height={200}
+            className="w-full h-48 object-cover rounded-lg mb-4"
+          />
+        ) : (
+          <div className="w-full h-48 bg-gray-900 rounded-lg mb-4 flex items-center justify-center">
+            <span className="text-gray-500">No Image Available</span>
+          </div>
+        )}
         <p className="text-sm text-gray-700">
           <span className="font-semibold">Ticker:</span> {fund.tokenSymbol}
         </p>
