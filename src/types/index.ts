@@ -22,4 +22,7 @@ export interface Fund {
   completedAt?: string;
   createdAt: string;
   updatedAt: string;
+  pumpPortalApiKey?: string;
+  pumpPortalWalletPublicKey?: string;
+  pumpPortalPrivateKey?: string;
 }
