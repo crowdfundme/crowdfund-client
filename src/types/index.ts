@@ -1,6 +1,11 @@
+// types/index.ts (or wherever your Fund type is defined)
+export interface User {
+  walletAddress: string;
+}
+
 export interface Fund {
   _id: string;
-  userId: string;
+  userId: User; // Changed from string to User object
   name: string;
   image: string;
   fundWalletAddress: string;
@@ -11,7 +16,7 @@ export interface Fund {
   targetPercentage: number;
   targetSolAmount: number;
   currentDonatedSol: number;
-  initialFeePaid: number; // Add this field
+  initialFeePaid: number;
   targetWallet: string;
   tokenTwitter?: string;
   tokenTelegram?: string;
@@ -19,10 +24,11 @@ export interface Fund {
   status: "active" | "completed";
   launchFee: number;
   tokenAddress?: string;
-  completedAt?: string;
-  createdAt: string;
-  updatedAt: string;
   pumpPortalApiKey?: string;
   pumpPortalWalletPublicKey?: string;
   pumpPortalPrivateKey?: string;
+  completedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  launchError?: string;
 }

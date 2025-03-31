@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Transaction, SystemProgram, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { getConnection } from "../lib/solana";
@@ -8,6 +8,7 @@ import Image from "next/image";
 import { Fund } from "../types";
 import axios from "axios";
 import Link from "next/link";
+import { toast, Toaster } from "sonner";
 
 interface FundListProps {
   funds: Fund[];
@@ -22,7 +23,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
   const [maxDonation, setMaxDonation] = useState<number>(10);
   const [error, setError] = useState<string | null>(null);
   const [donating, setDonating] = useState<string | null>(null);
-  const [imageUrls, setImageUrls] = useState<{ [key: string]: string }>({}); // Store image URLs
+  const [imageUrls, setImageUrls] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     const fetchLimitsAndImages = async () => {
@@ -37,7 +38,6 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
         }, {});
         setDonationAmounts(initialAmounts);
 
-        // Fetch image URLs for each fund
         const imagePromises = funds.map((fund) =>
           fund.image
             ? axios.get(`${process.env.NEXT_PUBLIC_API_URL}/token-images/${fund._id}/token-image`)
@@ -51,9 +51,11 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
           return acc;
         }, {});
         setImageUrls(urls);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to fetch donation limits or images:", err);
-        setError("Failed to load donation limits or images. Using defaults.");
+        const errorMsg = "Failed to load donation limits or images. Using defaults.";
+        setError(errorMsg);
+        toast.error(errorMsg);
       }
     };
 
@@ -62,13 +64,17 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
 
   const handleDonation = async (fundId: string, fundWalletAddress: string) => {
     if (!publicKey) {
-      setError("Please connect your wallet to donate.");
+      const errorMsg = "Please connect your wallet to donate.";
+      setError(errorMsg);
+      toast.error(errorMsg);
       return;
     }
 
     const amount = donationAmounts[fundId];
     if (!amount || amount < minDonation || amount > maxDonation) {
-      setError(`Donation amount for fund ${fundId} must be between ${minDonation} and ${maxDonation} SOL`);
+      const errorMsg = `Donation amount for fund ${fundId} must be between ${minDonation} and ${maxDonation} SOL`;
+      setError(errorMsg);
+      toast.error(errorMsg);
       return;
     }
 
@@ -107,30 +113,21 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
         txSignature: signature,
       });
 
-      alert(`Successfully donated ${amount.toFixed(2)} SOL! Transaction signature: ${signature}`);
-
-      if (onDonationSuccess) {
-        onDonationSuccess();
-      }
+      toast.success(`Successfully donated ${amount.toFixed(2)} SOL! Transaction: ${signature.slice(0, 8)}...`);
+      if (onDonationSuccess) onDonationSuccess();
     } catch (err: any) {
       console.error("Donation failed:", err);
       const errorMsg = err.message || "Donation failed. Please try again.";
-      if (errorMsg.includes("User rejected the request") || (err.code && err.code === 4001)) {
-        setError("Transaction canceled. Please try again if you wish to proceed.");
-      } else {
-        setError(err.response?.data?.error || errorMsg);
-      }
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setDonating(null);
     }
   };
 
-  if (funds.length === 0) {
-    return null;
-  }
-
   return (
     <div>
+      <Toaster position="top-right" richColors />
       {error && <p className="text-red-500 mb-4">{error}</p>}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {funds.map((fund) => {
@@ -163,10 +160,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
                 {fund.currentDonatedSol.toFixed(2)}/{fund.targetSolAmount.toFixed(2)} SOL)
               </p>
               <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
-                <div
-                  className="bg-blue-500 h-2.5 rounded-full"
-                  style={{ width: `${progress}%` }}
-                ></div>
+                <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>
               </div>
               {status === "active" && publicKey ? (
                 <>
@@ -226,9 +220,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
                         : `Donate ${(donationAmounts[fund._id] || minDonation).toFixed(2)} SOL`}
                     </button>
                     <Link href={`/fund/${fund._id}`} className="flex-1">
-                      <button className="w-full bg-blue-500 hover:bg-blue-600 text-white p-2 rounded">
-                        View
-                      </button>
+                      <button className="w-full bg-blue-500 hover:bg-blue-600 text-white p-2 rounded">View</button>
                     </Link>
                   </div>
                 </>
@@ -236,20 +228,19 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
                 <div className="flex gap-2">
                   <p className="flex-1 text-gray-600">Connect wallet to donate</p>
                   <Link href={`/fund/${fund._id}`} className="flex-1">
-                    <button className="w-full bg-blue-500 hover:bg-blue-600 text-white p-2 rounded">
-                      View
-                    </button>
+                    <button className="w-full bg-blue-500 hover:bg-blue-600 text-white p-2 rounded">View</button>
                   </Link>
                 </div>
               ) : (
                 <div className="flex gap-2">
                   <p className="flex-1 text-green-500">
-                    Completed! Token launched at: {fund.tokenAddress}
+                    Completed! Token:{" "}
+                    {fund.tokenAddress
+                      ? `${fund.tokenAddress.slice(0, 4)}...${fund.tokenAddress.slice(-4)}`
+                      : "Not yet launched"}
                   </p>
                   <Link href={`/fund/${fund._id}`} className="flex-1">
-                    <button className="w-full bg-blue-500 hover:bg-blue-600 text-white p-2 rounded">
-                      View
-                    </button>
+                    <button className="w-full bg-blue-500 hover:bg-blue-600 text-white p-2 rounded">View</button>
                   </Link>
                 </div>
               )}

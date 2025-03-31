@@ -22,7 +22,7 @@ export default function CreateFund() {
     tokenName: "",
     tokenSymbol: "",
     tokenDescription: "",
-    targetPercentage: 25,
+    targetPercentage: 1,
     targetWallet: "",
     tokenTwitter: "",
     tokenTelegram: "",
@@ -105,19 +105,23 @@ export default function CreateFund() {
       return;
     }
 
-    if (!process.env.NEXT_PUBLIC_WEBSITE_WALLET) {
-      toast.error("Website wallet address is not configured. Please contact support.");
-      return;
-    }
-
     try {
       const connection = getConnection();
-      const solBalance = await connection.getBalance(publicKey);
-      if (solBalance < 5000) {
-        throw new Error("Insufficient SOL for transaction fees. Please add at least 0.01 SOL to your wallet.");
+      const solBalance = await connection.getBalance(publicKey) / LAMPORTS_PER_SOL;
+      if (solBalance < creationFee + 0.005) {
+        throw new Error(`Insufficient SOL. Please add at least ${creationFee + 0.005} SOL to your wallet.`);
       }
 
-      const fundWalletAddress = new PublicKey(process.env.NEXT_PUBLIC_WEBSITE_WALLET);
+      // Step 1: Create the fund to get fundWalletAddress
+      const fundResponse = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/funds`, {
+        ...form,
+        userWallet: publicKey.toBase58(),
+      });
+
+      const fundId = fundResponse.data._id;
+      const fundWalletAddress = new PublicKey(fundResponse.data.fundWalletAddress);
+
+      // Step 2: Send CROWD_FUND_CREATION_FEE to fundWalletAddress
       const transaction = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
@@ -137,14 +141,12 @@ export default function CreateFund() {
       const { signature } = await provider.signAndSendTransaction(transaction);
       await connection.confirmTransaction(signature, "confirmed");
 
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/funds`, {
-        ...form,
-        userWallet: publicKey.toBase58(),
+      // Step 3: Update fund with transaction signature and confirm fee payment
+      const updateResponse = await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/funds/${fundId}`, {
         txSignature: signature,
       });
 
-      const fundId = response.data._id;
-
+      // Step 4: Upload image if provided
       if (imageFile) {
         const formData = new FormData();
         formData.append("image", imageFile);
@@ -166,7 +168,7 @@ export default function CreateFund() {
         tokenName: "",
         tokenSymbol: "",
         tokenDescription: "",
-        targetPercentage: 25,
+        targetPercentage: 1,
         targetWallet: "",
         tokenTwitter: "",
         tokenTelegram: "",
@@ -272,6 +274,7 @@ export default function CreateFund() {
             onChange={(e) => setForm({ ...form, targetPercentage: Number(e.target.value) })}
             className="block w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
+            <option value={1}>1% (0.3 SOL)</option>
             <option value={5}>5% (1.480938417 SOL)</option>
             <option value={10}>10% (3.114080165 SOL)</option>
             <option value={25}>25% (9.204131229 SOL)</option>
@@ -325,6 +328,13 @@ export default function CreateFund() {
           />
         </div>
 
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Creation Fee</label>
+          <p className="text-gray-500">
+            {loadingFee ? "Loading..." : creationFee !== null ? `${creationFee} SOL` : "Unable to load fee"}
+          </p>
+        </div>
+
         <button
           type="submit"
           className="w-full bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-md flex items-center justify-center transition-colors duration-200"
@@ -355,7 +365,7 @@ export default function CreateFund() {
           {loadingFee
             ? "Loading Fee..."
             : creationFee !== null
-            ? `Submit`
+            ? `Create Fund (${creationFee} SOL)`
             : "Unable to Load Fee"}
         </button>
       </form>

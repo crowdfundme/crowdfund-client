@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import FundList from "../../components/FundList";
 import { Fund } from "../../types";
+import { toast, Toaster } from "sonner";
 
 export default function Explore() {
   const [activeFunds, setActiveFunds] = useState<Fund[]>([]);
@@ -16,17 +17,25 @@ export default function Explore() {
       setLoading(true);
       setError(null);
       console.log("Fetching active funds...");
-      const activeResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/funds?status=active`);
+      const activeUrl = `${process.env.NEXT_PUBLIC_API_URL}/funds?status=active`;
+      console.log("Active funds URL:", activeUrl);
+      const activeResponse = await axios.get(activeUrl);
       console.log("Active funds response:", activeResponse.data);
+      console.log("Active fund IDs:", activeResponse.data.map((f: Fund) => f._id));
       setActiveFunds(activeResponse.data);
 
       console.log("Fetching completed funds...");
-      const completedResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/funds?status=completed`);
+      const completedUrl = `${process.env.NEXT_PUBLIC_API_URL}/funds?status=completed`;
+      console.log("Completed funds URL:", completedUrl);
+      const completedResponse = await axios.get(completedUrl);
       console.log("Completed funds response:", completedResponse.data);
+      console.log("Completed fund IDs:", completedResponse.data.map((f: Fund) => f._id));
       setCompletedFunds(completedResponse.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch funds:", error);
-      setError("Failed to fetch funds. Please try again.");
+      const errorMsg = error.message || "Failed to fetch funds.";
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -38,6 +47,7 @@ export default function Explore() {
 
   return (
     <div className="p-6">
+      <Toaster position="top-right" richColors />
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Crowdfunds</h1>
         <input
