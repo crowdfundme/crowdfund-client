@@ -24,6 +24,7 @@ export default function FundDetail() {
   const [error, setError] = useState<string | null>(null);
   const [donating, setDonating] = useState<boolean>(false);
   const [transferring, setTransferring] = useState<boolean>(false);
+  const [launching, setLaunching] = useState<boolean>(false); // New state for launching
   const [isTransferred, setIsTransferred] = useState<boolean>(false);
 
   useEffect(() => {
@@ -50,7 +51,6 @@ export default function FundDetail() {
         const fundData = fundResponse.data;
         setFund(fundData);
 
-        // Fetch image URL if available
         if (fundData.image) {
           try {
             const imageUrl = `${baseUrl}/token-images/${fundData._id}/token-image`;
@@ -232,6 +232,34 @@ export default function FundDetail() {
     }
   };
 
+  const handleManualLaunch = async () => {
+    if (!publicKey || !fund || fund.userId.walletAddress !== publicKey.toBase58()) {
+      const errorMsg = "Only the fund creator can launch the token.";
+      setError(errorMsg);
+      toast.error(errorMsg);
+      return;
+    }
+
+    try {
+      setError(null);
+      setLaunching(true);
+
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/funds/${fund._id}/launch`, {
+        userWallet: publicKey.toBase58(),
+      });
+
+      toast.success(response.data.message);
+      setFund({ ...fund, tokenAddress: response.data.tokenAddress }); // Update local fund state
+    } catch (err: any) {
+      console.error("Launch error:", err.response?.data || err);
+      const errorMsg = err.response?.data?.error || "Manual token launch failed due to server error.";
+      setError(errorMsg);
+      toast.error(errorMsg);
+    } finally {
+      setLaunching(false);
+    }
+  };
+
   const handleBack = () => router.back();
 
   return (
@@ -408,6 +436,46 @@ export default function FundDetail() {
               )}
             </div>
           )}
+
+          {fund.status === "completed" &&
+            fund.userId.walletAddress === publicKey?.toBase58() &&
+            !fund.tokenAddress && (
+              <div className="bg-white p-6 rounded-lg shadow-md mt-6">
+                <h2 className="text-xl font-semibold mb-4">Launch Token</h2>
+                <p className="text-gray-600 mb-4">
+                  The fund is complete but the token has not been created. Click below to manually launch the token.
+                </p>
+                <button
+                  onClick={handleManualLaunch}
+                  className="w-full bg-purple-500 hover:bg-purple-600 text-white p-2 rounded flex items-center justify-center"
+                  disabled={launching}
+                >
+                  {launching ? (
+                    <svg
+                      className="animate-spin h-5 w-5 mr-2 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      ></path>
+                    </svg>
+                  ) : null}
+                  {launching ? "Launching..." : "Launch Token"}
+                </button>
+              </div>
+            )}
 
           {fund.status === "completed" &&
             fund.userId.walletAddress === publicKey?.toBase58() &&

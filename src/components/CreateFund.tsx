@@ -98,6 +98,11 @@ export default function CreateFund() {
       return;
     }
 
+    if (!imageFile) {
+      toast.error("Please upload an image for your fund.");
+      return;
+    }
+
     try {
       new PublicKey(form.targetWallet);
     } catch (err) {
@@ -146,18 +151,16 @@ export default function CreateFund() {
         txSignature: signature,
       });
 
-      // Step 4: Upload image if provided
-      if (imageFile) {
-        const formData = new FormData();
-        formData.append("image", imageFile);
-        await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL}/token-images/${fundId}/token-image`,
-          formData,
-          {
-            headers: { "Content-Type": "multipart/form-data" },
-          }
-        );
-      }
+      // Step 4: Upload image
+      const formData = new FormData();
+      formData.append("image", imageFile);
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/token-images/${fundId}/token-image`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
 
       toast.success(`Fund created successfully! Transaction signature: ${signature}`, {
         duration: 3000,
@@ -176,6 +179,7 @@ export default function CreateFund() {
       });
       setImageFile(null);
       setImagePreview(null);
+      if (fileInputRef.current) fileInputRef.current.value = ""; // Reset file input
     } catch (error: any) {
       console.error(error);
       const errorMsg = error.message || "Failed to create fund.";
@@ -193,6 +197,7 @@ export default function CreateFund() {
       <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-8 text-center">Start your Crowdfund</h1>
       <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg w-full max-w-2xl mx-auto">
         <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Fund Image (Required)</label>
           <div
             className={`w-full h-64 sm:h-72 bg-gray-200 rounded-lg flex items-center justify-center cursor-pointer overflow-hidden hover:bg-gray-300 ${
               !imagePreview ? "border-2 border-dashed border-gray-300" : "border-none"
@@ -208,7 +213,7 @@ export default function CreateFund() {
                 className="w-full h-full object-cover rounded-lg"
               />
             ) : (
-              <span className="text-gray-500 text-center px-4">Click to Select Image</span>
+              <span className="text-gray-500 text-center px-4">Click to Select Image (Required)</span>
             )}
           </div>
           <input
@@ -217,6 +222,7 @@ export default function CreateFund() {
             ref={fileInputRef}
             onChange={handleImageChange}
             className="hidden"
+            required
           />
         </div>
 
@@ -338,7 +344,7 @@ export default function CreateFund() {
         <button
           type="submit"
           className="w-full bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-md flex items-center justify-center transition-colors duration-200"
-          disabled={loadingFee || creationFee === null}
+          disabled={loadingFee || creationFee === null || !imageFile}
         >
           {loadingFee && (
             <svg
