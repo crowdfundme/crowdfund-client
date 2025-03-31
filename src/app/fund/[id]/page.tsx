@@ -50,11 +50,21 @@ export default function FundDetail() {
         const fundData = fundResponse.data;
         setFund(fundData);
 
+        // Fetch image URL if available
         if (fundData.image) {
-          const imageUrl = `${baseUrl}/token-images/${fundData._id}/token-image`;
-          console.log("Fetching image from:", imageUrl);
-          const imageResponse = await axios.get(imageUrl);
-          setImageUrl(imageResponse.data.url);
+          try {
+            const imageUrl = `${baseUrl}/token-images/${fundData._id}/token-image`;
+            console.log("Fetching image from:", imageUrl);
+            const imageResponse = await axios.get(imageUrl);
+            if (imageResponse.data.url) {
+              setImageUrl(imageResponse.data.url);
+            } else {
+              console.log("No image URL returned from API");
+            }
+          } catch (imgErr) {
+            console.error("Failed to fetch image:", imgErr);
+            setImageUrl(null);
+          }
         }
 
         if (fundData.status === "completed" && fundData.tokenAddress) {
@@ -90,6 +100,20 @@ export default function FundDetail() {
               setFund(foundFund);
               setError(null);
               found = true;
+
+              if (foundFund.image) {
+                try {
+                  const imageUrl = `${process.env.NEXT_PUBLIC_API_URL}/token-images/${foundFund._id}/token-image`;
+                  console.log("Fallback: Fetching image from:", imageUrl);
+                  const imageResponse = await axios.get(imageUrl);
+                  if (imageResponse.data.url) {
+                    setImageUrl(imageResponse.data.url);
+                  }
+                } catch (imgErr) {
+                  console.error("Fallback: Failed to fetch image:", imgErr);
+                  setImageUrl(null);
+                }
+              }
 
               if (foundFund.status === "completed" && foundFund.tokenAddress) {
                 const connection = getConnection();
@@ -226,15 +250,21 @@ export default function FundDetail() {
           </div>
           <div className="border border-gray-300 rounded-lg p-4 mb-6">
             {imageUrl ? (
-              <Image
-                src={imageUrl}
-                alt={fund.name}
-                width={400}
-                height={200}
-                className="w-full h-48 object-cover rounded-lg mb-4"
-              />
+              <div className="relative w-full h-48 mb-4">
+                <Image
+                  src={imageUrl}
+                  alt={fund.name}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 400px"
+                  className="object-cover rounded-lg"
+                  onError={() => {
+                    console.log("Image failed to load:", imageUrl);
+                    setImageUrl(null);
+                  }}
+                />
+              </div>
             ) : (
-              <div className="w-full h-48 bg-gray-900 rounded-lg mb-4 flex items-center justify-center">
+              <div className="w-full h-48 bg-gray-200 rounded-lg mb-4 flex items-center justify-center">
                 <span className="text-gray-500">No Image Available</span>
               </div>
             )}
