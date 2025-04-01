@@ -1,8 +1,9 @@
+// src/app/layout.tsx
 import "../styles/globals.css";
 import type { Metadata } from "next";
 import { UserProvider } from "../context/UserContext";
 import "@solana/wallet-adapter-react-ui/styles.css";
-import WalletWrapper from "../components/WalletWrapper";
+import WalletWrapper from "../components/WalletWrapper"; // New client-side wrapper
 
 export const metadata: Metadata = {
   title: "Crowd Fund",
