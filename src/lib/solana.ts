@@ -1,10 +1,8 @@
-import { Connection} from "@solana/web3.js";
-import { getSolanaRpcUrl } from '../utils/getSolanaRpcUrl';
+import { Connection } from "@solana/web3.js";
+import { getSolanaRpcUrl } from "../utils/getSolanaRpcUrl";
 
-/**
- * Get a Solana connection using the secure runtime RPC URL.
- */
 export const getConnection = async (): Promise<Connection> => {
   const rpcUrl = await getSolanaRpcUrl();
+  console.log("[solana.ts] Using RPC URL:", rpcUrl);
   return new Connection(rpcUrl, "confirmed");
 };

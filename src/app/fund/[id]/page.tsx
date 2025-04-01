@@ -28,6 +28,7 @@ export default function FundDetail() {
   const [transferring, setTransferring] = useState<boolean>(false);
   const [launching, setLaunching] = useState<boolean>(false);
   const [isTransferred, setIsTransferred] = useState<boolean>(false);
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
   useEffect(() => {
     const fetchFundAndLimits = async () => {
@@ -37,6 +38,7 @@ export default function FundDetail() {
         logInfo(`Fetching fund details for ID: ${id}`);
         const baseUrl = process.env.NEXT_PUBLIC_API_URL;
 
+        // Fetch donation limits
         const limitsUrl = `${baseUrl}/funds/fee`;
         logInfo("Fetching limits from:", limitsUrl);
         const limitsResponse = await axios.get(limitsUrl);
@@ -44,12 +46,14 @@ export default function FundDetail() {
         setMaxDonation(limitsResponse.data.maxDonation);
         setDonationAmount(limitsResponse.data.minDonation);
 
+        // Fetch fund by ID
         const fundUrl = `${baseUrl}/funds/${id}`;
         logInfo("Fetching fund from:", fundUrl);
         const fundResponse = await axios.get(fundUrl);
         const fundData = fundResponse.data;
         setFund(fundData);
 
+        // Fetch image if available
         if (fundData.image) {
           try {
             const imageUrl = `${baseUrl}/token-images/${fundData._id}/token-image`;
@@ -64,6 +68,7 @@ export default function FundDetail() {
           }
         }
 
+        // Check token balance for completed funds
         if (fundData.status === "completed" && fundData.tokenAddress) {
           const connection = await getConnection();
           const tokenMint = new PublicKey(fundData.tokenAddress);
@@ -81,16 +86,24 @@ export default function FundDetail() {
         }
       } catch (err: unknown) {
         logInfo("Fetch error:", err);
-        const errorMsg = "Unknown error";
-        setError(`Failed to load fund details: ${errorMsg}`);
+        let errorMsg = "Failed to load fund details.";
+        if (axios.isAxiosError(err) && err.response) {
+          errorMsg = err.response.data.error || errorMsg;
+          if (err.response.status === 404) {
+            errorMsg = `Fund with ID ${id} not found.`;
+          }
+        }
+        setError(errorMsg);
 
+        // Fallback logic
         try {
           const statuses = ["active", "completed"];
           let found = false;
           for (const status of statuses) {
             logInfo(`Fallback: Attempting to fetch from /funds?status=${status}`);
-            const allFundsResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/funds?status=${status}`);
-            const foundFund = allFundsResponse.data.find((f: Fund) => f._id === id);
+            const allFundsResponse = await axios.get(`${baseUrl}/funds?status=${status}`);
+            const fundsArray = Array.isArray(allFundsResponse.data.funds) ? allFundsResponse.data.funds : [];
+            const foundFund = fundsArray.find((f: Fund) => f._id === id);
             if (foundFund) {
               logInfo(`Fallback: Found fund in /funds?status=${status}`, foundFund);
               setFund(foundFund);
@@ -99,7 +112,7 @@ export default function FundDetail() {
 
               if (foundFund.image) {
                 try {
-                  const imageUrl = `${process.env.NEXT_PUBLIC_API_URL}/token-images/${foundFund._id}/token-image`;
+                  const imageUrl = `${baseUrl}/token-images/${foundFund._id}/token-image`;
                   logInfo("Fallback: Fetching image from:", imageUrl);
                   const imageResponse = await axios.get(imageUrl);
                   if (imageResponse.data.url) {
@@ -135,7 +148,10 @@ export default function FundDetail() {
           }
         } catch (fallbackErr: unknown) {
           logInfo("Fallback fetch failed:", fallbackErr);
-          toast.error("Unable to load fund details: " + (fallbackErr || "Unknown error"));
+          const fallbackErrorMsg = axios.isAxiosError(fallbackErr) && fallbackErr.response
+            ? fallbackErr.response.data.error || "Unknown error in fallback fetch"
+            : String(fallbackErr);
+          toast.error(`Unable to load fund details: ${fallbackErrorMsg}`);
         }
       } finally {
         setLoading(false);
@@ -265,7 +281,9 @@ export default function FundDetail() {
       setIsTransferred(true);
     } catch (err: unknown) {
       logInfo("Transfer error:", err);
-      const errorMsg = "Manual transfer failed due to server error.";
+      const errorMsg = axios.isAxiosError(err) && err.response
+        ? err.response.data.error || "Manual transfer failed due to server error."
+        : "Manual transfer failed due to server error.";
       setError(errorMsg);
       toast.error(errorMsg);
     } finally {
@@ -293,7 +311,9 @@ export default function FundDetail() {
       setFund({ ...fund, tokenAddress: response.data.tokenAddress });
     } catch (err: unknown) {
       logInfo("Launch error:", err);
-      const errorMsg = "Manual token launch failed due to server error.";
+      const errorMsg = axios.isAxiosError(err) && err.response
+        ? err.response.data.error || "Manual token launch failed due to server error."
+        : "Manual token launch failed due to server error.";
       setError(errorMsg);
       toast.error(errorMsg);
     } finally {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { Fund } from "../../types";
+import { Fund } from "@/types";
 
 interface TotalDonatedUser {
   walletAddress: string;
@@ -14,28 +14,41 @@ interface FundLeaderboardUser {
   totalForFund: number;
 }
 
-export default function Leaderboard() {
+export default function LeaderboardPage() {
   const [totalLeaderboard, setTotalLeaderboard] = useState<TotalDonatedUser[]>([]);
   const [fundLeaderboard, setFundLeaderboard] = useState<FundLeaderboardUser[]>([]);
   const [funds, setFunds] = useState<Fund[]>([]);
   const [selectedFundId, setSelectedFundId] = useState<string | null>(null);
   const [fundName, setFundName] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const totalResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/users/leaderboard/total`);
-        setTotalLeaderboard(totalResponse.data);
+        setError(null);
 
+        // Fetch total leaderboard
+        const totalResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/users/leaderboard/total`);
+        console.log("Total leaderboard response:", totalResponse.data);
+        setTotalLeaderboard(Array.isArray(totalResponse.data) ? totalResponse.data : []);
+
+        // Fetch active funds
         const fundsResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/funds?status=active`);
-        setFunds(fundsResponse.data);
-        if (fundsResponse.data.length > 0) {
-          setSelectedFundId(fundsResponse.data[0]._id);
+        console.log("Funds response:", fundsResponse.data);
+        const fundsData = Array.isArray(fundsResponse.data.funds) ? fundsResponse.data.funds : [];
+        setFunds(fundsData);
+        if (fundsData.length > 0) {
+          setSelectedFundId(fundsData[0]._id);
+        } else {
+          setSelectedFundId(null);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Failed to fetch leaderboard data:", error);
+        setError("Failed to load leaderboard data.");
+        setTotalLeaderboard([]);
+        setFunds([]);
       } finally {
         setLoading(false);
       }
@@ -45,18 +58,24 @@ export default function Leaderboard() {
   }, []);
 
   useEffect(() => {
-    if (!selectedFundId) return;
+    if (!selectedFundId) {
+      setFundLeaderboard([]);
+      setFundName("");
+      return;
+    }
 
     const fetchFundLeaderboard = async () => {
       try {
         const response = await axios.get(
           `${process.env.NEXT_PUBLIC_API_URL}/users/leaderboard/fund/${selectedFundId}`
         );
-        setFundLeaderboard(response.data.leaderboard);
-        setFundName(response.data.fundName);
-      } catch (error) {
+        console.log(`Fund leaderboard response for ${selectedFundId}:`, response.data);
+        setFundLeaderboard(Array.isArray(response.data.leaderboard) ? response.data.leaderboard : []);
+        setFundName(response.data.fundName || "Unknown Fund");
+      } catch (error: unknown) {
         console.error(`Failed to fetch leaderboard for fund ${selectedFundId}:`, error);
         setFundLeaderboard([]);
+        setFundName("Error Loading Fund");
       }
     };
 
@@ -69,6 +88,8 @@ export default function Leaderboard() {
 
       {loading ? (
         <p className="text-gray-600">Loading leaderboards...</p>
+      ) : error ? (
+        <p className="text-red-500 mb-4">{error}</p>
       ) : (
         <>
           {/* Total SOL Donated Leaderboard */}
@@ -100,37 +121,48 @@ export default function Leaderboard() {
           {/* Per-Fund Leaderboard */}
           <div>
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Top 100 Donors Per Fund</h2>
-            <select
-              value={selectedFundId || ""}
-              onChange={(e) => setSelectedFundId(e.target.value)}
-              className="block w-full max-w-xs p-2 border rounded mb-4"
-            >
-              {funds.map((fund) => (
-                <option key={fund._id} value={fund._id}>
-                  {fund.name} ({fund.tokenSymbol})
-                </option>
-              ))}
-            </select>
-            {fundLeaderboard.length === 0 ? (
-              <p className="text-gray-600">No donations for {fundName} yet.</p>
+            {funds.length === 0 ? (
+              <p className="text-gray-600">No active funds available.</p>
             ) : (
-              <div className="max-h-[600px] overflow-y-auto">
-                <div className="space-y-4">
-                  {fundLeaderboard.map((user, index) => (
-                    <div key={user.walletAddress} className="border border-gray-300 rounded-lg p-4">
-                      <div className="flex justify-between items-center">
-                        <h3 className="text-lg font-semibold">
-                          #{index + 1} {user.walletAddress.slice(0, 4)}...{user.walletAddress.slice(-4)}
-                        </h3>
-                        <p className="text-gray-700">
-                          Donated to {fundName}:{" "}
-                          <span className="font-semibold">{user.totalForFund.toFixed(2)} SOL</span>
-                        </p>
-                      </div>
-                    </div>
+              <>
+                <select
+                  value={selectedFundId || ""}
+                  onChange={(e) => setSelectedFundId(e.target.value)}
+                  className="block w-full max-w-xs p-2 border rounded mb-4"
+                >
+                  <option value="" disabled>
+                    Select a fund
+                  </option>
+                  {funds.map((fund) => (
+                    <option key={fund._id} value={fund._id}>
+                      {fund.name} ({fund.tokenSymbol})
+                    </option>
                   ))}
-                </div>
-              </div>
+                </select>
+                {!selectedFundId ? (
+                  <p className="text-gray-600">Please select a fund to view its leaderboard.</p>
+                ) : fundLeaderboard.length === 0 ? (
+                  <p className="text-gray-600">No donations for {fundName} yet.</p>
+                ) : (
+                  <div className="max-h-[600px] overflow-y-auto">
+                    <div className="space-y-4">
+                      {fundLeaderboard.map((user, index) => (
+                        <div key={user.walletAddress} className="border border-gray-300 rounded-lg p-4">
+                          <div className="flex justify-between items-center">
+                            <h3 className="text-lg font-semibold">
+                              #{index + 1} {user.walletAddress.slice(0, 4)}...{user.walletAddress.slice(-4)}
+                            </h3>
+                            <p className="text-gray-700">
+                              Donated to {fundName}:{" "}
+                              <span className="font-semibold">{user.totalForFund.toFixed(2)} SOL</span>
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </>
