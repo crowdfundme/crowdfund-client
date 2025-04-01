@@ -14,7 +14,7 @@ import { useUser } from "../context/UserContext";
 
 interface FundListProps {
   funds: Fund[];
-  status: "active" | "completed";
+  status: "active" | "completed" | "mixed"; // Add "mixed"
   onDonationSuccess?: (updatedFund?: Fund) => void;
 }
 
@@ -174,6 +174,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
         {funds.map((fund) => {
           const progress = Math.min((fund.currentDonatedSol / fund.targetSolAmount) * 100, 100);
           const imageUrl = imageUrls[fund._id];
+          const fundStatus = status === "mixed" ? fund.status : status; // Use fund.status when status is "mixed"
 
           return (
             <div key={fund._id} className="bg-white p-4 rounded-lg shadow-md">
@@ -203,7 +204,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
               <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
                 <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>
               </div>
-              {status === "active" && publicKey ? (
+              {fundStatus === "active" && publicKey ? (
                 <>
                   <div className="mb-4">
                     <label htmlFor={`donation-${fund._id}`} className="block text-sm font-medium text-gray-700">
@@ -268,7 +269,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
                     </Link>
                   </div>
                 </>
-              ) : status === "active" ? (
+              ) : fundStatus === "active" ? (
                 <div className="flex gap-2">
                   <p className="flex-1 text-gray-600">Connect wallet to donate</p>
                   <Link href={`/fund/${fund._id}`} className="flex-1">

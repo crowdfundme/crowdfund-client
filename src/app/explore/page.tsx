@@ -2,17 +2,21 @@
 
 import { useEffect, useState } from "react";
 import axios from "axios";
-import FundList from "@/components/FundList"; // Adjusted path for App Router
-import { Fund } from "@/types"; // Adjusted path
+import FundList from "@/components/FundList";
+import { Fund } from "@/types";
 import { toast, Toaster } from "sonner";
 import Link from "next/link";
 
 export default function ExplorePage() {
   const [activeFunds, setActiveFunds] = useState<Fund[]>([]);
   const [completedFunds, setCompletedFunds] = useState<Fund[]>([]);
+  const [searchResults, setSearchResults] = useState<Fund[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
+  // Fetch initial active and completed funds
   const fetchFunds = async () => {
     try {
       setLoading(true);
@@ -36,6 +40,41 @@ export default function ExplorePage() {
     }
   };
 
+  // Handle search input
+  const handleSearch = async (term: string) => {
+    if (!term.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      setSearchLoading(true);
+      setError(null);
+      console.log(`Searching funds with term: ${term}`);
+      const response = await axios.get(
+        `${process.env.NEXT_PUBLIC_API_URL}/funds?search=${encodeURIComponent(term)}&page=1&limit=10`
+      );
+      console.log("Search results:", response.data);
+      setSearchResults(response.data.funds);
+    } catch (error: unknown) {
+      console.error("Failed to search funds:", error);
+      const errorMsg = "Failed to search funds.";
+      setError(errorMsg);
+      toast.error(errorMsg);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // Debounce search to prevent excessive API calls
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      handleSearch(searchTerm);
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
+
   const handleDonationSuccess = (updatedFund?: Fund) => {
     if (updatedFund) {
       setActiveFunds((prev) =>
@@ -45,6 +84,9 @@ export default function ExplorePage() {
         updatedFund.status === "completed"
           ? [...prev.filter((f) => f._id !== updatedFund._id), updatedFund]
           : prev
+      );
+      setSearchResults((prev) =>
+        prev.map((f) => (f._id === updatedFund._id ? updatedFund : f))
       );
     } else {
       fetchFunds();
@@ -62,14 +104,30 @@ export default function ExplorePage() {
         <h1 className="text-3xl font-bold text-gray-900">Crowdfunds</h1>
         <input
           type="text"
-          placeholder="Search by ID"
+          placeholder="Search by ID, name, or token"
           className="border border-gray-300 rounded-lg p-2 w-48"
-          disabled
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
 
       {error && <p className="text-red-500 mb-4">{error}</p>}
 
+      {/* Search Results */}
+      {searchTerm && (
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Search Results</h2>
+          {searchLoading ? (
+            <p className="text-gray-600">Searching...</p>
+          ) : searchResults.length === 0 ? (
+            <p className="text-gray-600">No funds found matching "{searchTerm}".</p>
+          ) : (
+            <FundList funds={searchResults} status="mixed" onDonationSuccess={handleDonationSuccess} />
+          )}
+        </div>
+      )}
+
+      {/* Active Funds */}
       <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Latest Active Crowdfunds</h2>
         {loading ? (
@@ -88,6 +146,7 @@ export default function ExplorePage() {
         )}
       </div>
 
+      {/* Completed Funds */}
       <div className="mt-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Latest Completed Crowdfunds</h2>
         {loading ? (

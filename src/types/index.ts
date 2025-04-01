@@ -1,15 +1,13 @@
-// types/index.ts (or wherever your Fund type is defined)
 export interface User {
   walletAddress: string;
 }
 
 export interface Fund {
   _id: string;
-  userId: User; // Changed from string to User object
+  userId: User;
   name: string;
-  image: string;
+  image?: string;
   fundWalletAddress: string;
-  fundPrivateKey: string;
   tokenName: string;
   tokenSymbol: string;
   tokenDescription: string;
@@ -26,9 +24,12 @@ export interface Fund {
   tokenAddress?: string;
   pumpPortalApiKey?: string;
   pumpPortalWalletPublicKey?: string;
-  pumpPortalPrivateKey?: string;
+  pumpPortalTransferCompleted?: boolean;
   completedAt?: string;
   createdAt: string;
   updatedAt: string;
   launchError?: string;
+  tokenCa?: string;
+  solscanUrl?: string;
+  currentBalance?: number | null;
 }
