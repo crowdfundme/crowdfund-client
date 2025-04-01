@@ -11,29 +11,32 @@ export default function Explore() {
   const [completedFunds, setCompletedFunds] = useState<Fund[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activePage, setActivePage] = useState(1);
+  const [completedPage, setCompletedPage] = useState(1);
+  const [activeTotalPages, setActiveTotalPages] = useState(1);
+  const [completedTotalPages, setCompletedTotalPages] = useState(1);
+  const fundsPerPage = 10;
 
-  const fetchFunds = async () => {
+  const fetchFunds = async (status: "active" | "completed", page: number) => {
     try {
       setLoading(true);
       setError(null);
-      console.log("Fetching active funds...");
-      const activeUrl = `${process.env.NEXT_PUBLIC_API_URL}/funds?status=active`;
-      console.log("Active funds URL:", activeUrl);
-      const activeResponse = await axios.get(activeUrl);
-      console.log("Active funds response:", activeResponse.data);
-      console.log("Active fund IDs:", activeResponse.data.map((f: Fund) => f._id));
-      setActiveFunds(activeResponse.data);
-
-      console.log("Fetching completed funds...");
-      const completedUrl = `${process.env.NEXT_PUBLIC_API_URL}/funds?status=completed`;
-      console.log("Completed funds URL:", completedUrl);
-      const completedResponse = await axios.get(completedUrl);
-      console.log("Completed funds response:", completedResponse.data);
-      console.log("Completed fund IDs:", completedResponse.data.map((f: Fund) => f._id));
-      setCompletedFunds(completedResponse.data);
+      console.log(`Fetching ${status} funds, page ${page}...`);
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/funds?status=${status}&page=${page}&limit=${fundsPerPage}`;
+      console.log(`${status} funds URL:`, url);
+      const response = await axios.get(url);
+      console.log(`${status} funds response:`, response.data);
+      console.log(`${status} fund IDs:`, response.data.funds.map((f: Fund) => f._id));
+      if (status === "active") {
+        setActiveFunds(response.data.funds);
+        setActiveTotalPages(response.data.pages);
+      } else {
+        setCompletedFunds(response.data.funds);
+        setCompletedTotalPages(response.data.pages);
+      }
     } catch (error: unknown) {
-      console.error("Failed to fetch funds:", error);
-      const errorMsg = "Failed to fetch funds.";
+      console.error(`Failed to fetch ${status} funds:`, error);
+      const errorMsg = `Failed to fetch ${status} funds.`;
       setError(errorMsg);
       toast.error(errorMsg);
     } finally {
@@ -41,7 +44,6 @@ export default function Explore() {
     }
   };
 
-  // Handle donation success with updated fund data
   const handleDonationSuccess = (updatedFund?: Fund) => {
     if (updatedFund) {
       setActiveFunds((prev) =>
@@ -53,13 +55,15 @@ export default function Explore() {
           : prev
       );
     } else {
-      fetchFunds(); // Fallback to full refresh if no updated fund provided
+      fetchFunds("active", activePage);
+      fetchFunds("completed", completedPage);
     }
   };
 
   useEffect(() => {
-    fetchFunds();
-  }, []);
+    fetchFunds("active", activePage);
+    fetchFunds("completed", completedPage);
+  }, [activePage, completedPage]);
 
   return (
     <div className="p-6">
@@ -76,22 +80,76 @@ export default function Explore() {
 
       {error && <p className="text-red-500 mb-4">{error}</p>}
 
-      {loading ? (
-        <p className="text-gray-600">Loading crowdfunds...</p>
-      ) : activeFunds.length === 0 ? (
-        <p className="text-gray-600 mb-6">No active crowdfunds available.</p>
-      ) : (
-        <FundList funds={activeFunds} status="active" onDonationSuccess={handleDonationSuccess} />
-      )}
+      <div>
+        {loading ? (
+          <p className="text-gray-600">Loading crowdfunds...</p>
+        ) : activeFunds.length === 0 ? (
+          <p className="text-gray-600 mb-6">No active crowdfunds available.</p>
+        ) : (
+          <>
+            <FundList
+              funds={activeFunds}
+              status="active"
+              onDonationSuccess={handleDonationSuccess}
+            />
+            <div className="flex justify-between mt-4">
+              <button
+                onClick={() => setActivePage((prev) => Math.max(prev - 1, 1))}
+                disabled={activePage === 1}
+                className="px-4 py-2 bg-gray-300 rounded disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <span>
+                Page {activePage} of {activeTotalPages}
+              </span>
+              <button
+                onClick={() => setActivePage((prev) => prev + 1)}
+                disabled={activePage >= activeTotalPages}
+                className="px-4 py-2 bg-gray-300 rounded disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </>
+        )}
+      </div>
 
       <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Completed Crowdfunds</h2>
-      {loading ? (
-        <p className="text-gray-600">Loading completed crowdfunds...</p>
-      ) : completedFunds.length === 0 ? (
-        <p className="text-gray-600">No completed crowdfunds yet.</p>
-      ) : (
-        <FundList funds={completedFunds} status="completed" onDonationSuccess={handleDonationSuccess} />
-      )}
+      <div>
+        {loading ? (
+          <p className="text-gray-600">Loading completed crowdfunds...</p>
+        ) : completedFunds.length === 0 ? (
+          <p className="text-gray-600">No completed crowdfunds yet.</p>
+        ) : (
+          <>
+            <FundList
+              funds={completedFunds}
+              status="completed"
+              onDonationSuccess={handleDonationSuccess}
+            />
+            <div className="flex justify-between mt-4">
+              <button
+                onClick={() => setCompletedPage((prev) => Math.max(prev - 1, 1))}
+                disabled={completedPage === 1}
+                className="px-4 py-2 bg-gray-300 rounded disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <span>
+                Page {completedPage} of {completedTotalPages}
+              </span>
+              <button
+                onClick={() => setCompletedPage((prev) => prev + 1)}
+                disabled={completedPage >= completedTotalPages}
+                className="px-4 py-2 bg-gray-300 rounded disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
