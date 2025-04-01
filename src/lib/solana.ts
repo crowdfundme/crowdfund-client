@@ -1,3 +1,4 @@
+// src/utils/solana.ts
 import { Connection } from "@solana/web3.js";
 import { getSolanaRpcUrl } from "../utils/getSolanaRpcUrl";
 
