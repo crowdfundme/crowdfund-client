@@ -10,6 +10,7 @@ import { Fund } from "../../../types";
 import Image from "next/image";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
 import { toast, Toaster } from "sonner";
+import { logInfo } from "../../../utils/logger";
 
 export default function FundDetail() {
   const { id } = useParams();
@@ -24,7 +25,7 @@ export default function FundDetail() {
   const [error, setError] = useState<string | null>(null);
   const [donating, setDonating] = useState<boolean>(false);
   const [transferring, setTransferring] = useState<boolean>(false);
-  const [launching, setLaunching] = useState<boolean>(false); // New state for launching
+  const [launching, setLaunching] = useState<boolean>(false);
   const [isTransferred, setIsTransferred] = useState<boolean>(false);
 
   useEffect(() => {
@@ -32,71 +33,65 @@ export default function FundDetail() {
       try {
         setLoading(true);
         setError(null);
-        console.log(`Fetching fund details for ID: ${id}`);
+        logInfo(`Fetching fund details for ID: ${id}`);
         const baseUrl = process.env.NEXT_PUBLIC_API_URL;
-        console.log("API Base URL:", baseUrl);
 
         const limitsUrl = `${baseUrl}/funds/fee`;
-        console.log("Fetching limits from:", limitsUrl);
+        logInfo("Fetching limits from:", limitsUrl);
         const limitsResponse = await axios.get(limitsUrl);
-        console.log("Limits response:", limitsResponse.data);
         setMinDonation(limitsResponse.data.minDonation);
         setMaxDonation(limitsResponse.data.maxDonation);
         setDonationAmount(limitsResponse.data.minDonation);
 
         const fundUrl = `${baseUrl}/funds/${id}`;
-        console.log("Fetching fund from:", fundUrl);
+        logInfo("Fetching fund from:", fundUrl);
         const fundResponse = await axios.get(fundUrl);
-        console.log("Fund response:", fundResponse.data);
         const fundData = fundResponse.data;
         setFund(fundData);
 
         if (fundData.image) {
           try {
             const imageUrl = `${baseUrl}/token-images/${fundData._id}/token-image`;
-            console.log("Fetching image from:", imageUrl);
+            logInfo("Fetching image from:", imageUrl);
             const imageResponse = await axios.get(imageUrl);
             if (imageResponse.data.url) {
               setImageUrl(imageResponse.data.url);
-            } else {
-              console.log("No image URL returned from API");
             }
           } catch (imgErr) {
-            console.error("Failed to fetch image:", imgErr);
+            logInfo("Failed to fetch image:", imgErr);
             setImageUrl(null);
           }
         }
 
         if (fundData.status === "completed" && fundData.tokenAddress) {
-          const connection = getConnection();
+          const connection = await getConnection();
           const tokenMint = new PublicKey(fundData.tokenAddress);
           const targetWallet = new PublicKey(fundData.targetWallet);
           const targetTokenAccountAddress = await getAssociatedTokenAddress(tokenMint, targetWallet);
-          console.log("Checking ATA balance for:", targetTokenAccountAddress.toBase58());
+          logInfo("Checking ATA balance for:", targetTokenAccountAddress.toBase58());
           try {
             const balance = await connection.getTokenAccountBalance(targetTokenAccountAddress, "confirmed");
-            console.log("Target wallet balance:", balance.value.uiAmount);
+            logInfo("Target wallet balance:", balance.value.uiAmount);
             setIsTransferred((balance.value.uiAmount || 0) > 0);
           } catch (err) {
-            console.log("No tokens transferred yet or ATA not found:", err);
+            logInfo("No tokens transferred yet or ATA not found:", err);
             setIsTransferred(false);
           }
         }
-      } catch (err: any) {
-        console.error("Fetch error:", err);
-        const errorMsg = err.response?.data?.error || err.message || "Unknown error";
+      } catch (err: unknown) {
+        logInfo("Fetch error:", err);
+        const errorMsg = "Unknown error";
         setError(`Failed to load fund details: ${errorMsg}`);
 
         try {
           const statuses = ["active", "completed"];
           let found = false;
           for (const status of statuses) {
-            console.log(`Fallback: Attempting to fetch from /funds?status=${status}`);
+            logInfo(`Fallback: Attempting to fetch from /funds?status=${status}`);
             const allFundsResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/funds?status=${status}`);
-            console.log(`Fetched ${status} funds:`, allFundsResponse.data);
             const foundFund = allFundsResponse.data.find((f: Fund) => f._id === id);
             if (foundFund) {
-              console.log(`Fallback: Found fund in /funds?status=${status}`, foundFund);
+              logInfo(`Fallback: Found fund in /funds?status=${status}`, foundFund);
               setFund(foundFund);
               setError(null);
               found = true;
@@ -104,29 +99,29 @@ export default function FundDetail() {
               if (foundFund.image) {
                 try {
                   const imageUrl = `${process.env.NEXT_PUBLIC_API_URL}/token-images/${foundFund._id}/token-image`;
-                  console.log("Fallback: Fetching image from:", imageUrl);
+                  logInfo("Fallback: Fetching image from:", imageUrl);
                   const imageResponse = await axios.get(imageUrl);
                   if (imageResponse.data.url) {
                     setImageUrl(imageResponse.data.url);
                   }
                 } catch (imgErr) {
-                  console.error("Fallback: Failed to fetch image:", imgErr);
+                  logInfo("Fallback: Failed to fetch image:", imgErr);
                   setImageUrl(null);
                 }
               }
 
               if (foundFund.status === "completed" && foundFund.tokenAddress) {
-                const connection = getConnection();
+                const connection = await getConnection();
                 const tokenMint = new PublicKey(foundFund.tokenAddress);
                 const targetWallet = new PublicKey(foundFund.targetWallet);
                 const targetTokenAccountAddress = await getAssociatedTokenAddress(tokenMint, targetWallet);
-                console.log("Checking ATA balance for:", targetTokenAccountAddress.toBase58());
+                logInfo("Checking ATA balance for:", targetTokenAccountAddress.toBase58());
                 try {
                   const balance = await connection.getTokenAccountBalance(targetTokenAccountAddress, "confirmed");
-                  console.log("Target wallet balance:", balance.value.uiAmount);
+                  logInfo("Target wallet balance:", balance.value.uiAmount);
                   setIsTransferred((balance.value.uiAmount || 0) > 0);
                 } catch (err) {
-                  console.log("No tokens transferred yet or ATA not found:", err);
+                  logInfo("No tokens transferred yet or ATA not found:", err);
                   setIsTransferred(false);
                 }
               }
@@ -134,12 +129,12 @@ export default function FundDetail() {
             }
           }
           if (!found) {
-            console.log("Fallback failed: Fund not found in active or completed lists");
+            logInfo("Fallback failed: Fund not found in active or completed lists");
             toast.error("Fund not found in active or completed lists.");
           }
-        } catch (fallbackErr: any) {
-          console.error("Fallback fetch failed:", fallbackErr);
-          toast.error("Unable to load fund details: " + (fallbackErr.message || "Unknown error"));
+        } catch (fallbackErr: unknown) {
+          logInfo("Fallback fetch failed:", fallbackErr);
+          toast.error("Unable to load fund details: " + (fallbackErr || "Unknown error"));
         }
       } finally {
         setLoading(false);
@@ -168,12 +163,17 @@ export default function FundDetail() {
       setError(null);
       setDonating(true);
 
-      const connection = getConnection();
+      const connection = await getConnection();
+      const solBalance = await connection.getBalance(publicKey) / LAMPORTS_PER_SOL;
+      if (solBalance < donationAmount + 0.01) {
+        throw new Error(`Insufficient SOL. Need at least ${(donationAmount + 0.01).toFixed(2)} SOL, have ${solBalance.toFixed(2)} SOL`);
+      }
+
       const transaction = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
           toPubkey: new PublicKey(fund.fundWalletAddress),
-          lamports: donationAmount * LAMPORTS_PER_SOL,
+          lamports: Math.round(donationAmount * LAMPORTS_PER_SOL),
         })
       );
       const { blockhash } = await connection.getLatestBlockhash();
@@ -181,22 +181,43 @@ export default function FundDetail() {
       transaction.feePayer = publicKey;
 
       const provider = window.solana;
-      if (!provider || !provider.isPhantom) throw new Error("Phantom wallet not detected.");
+      if (!provider || !provider.signAndSendTransaction) {
+        throw new Error("Wallet not detected or incompatible. Please use a Solana-compatible wallet (e.g., Phantom).");
+      }
 
+      toast.info("Please confirm the transaction in your wallet...");
       const { signature } = await provider.signAndSendTransaction(transaction);
-      await connection.confirmTransaction(signature, "confirmed");
+      toast.info("Transaction sent, awaiting confirmation...");
 
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/funds/${fund._id}/donate`, {
+      await connection.confirmTransaction(signature, "confirmed");
+      logInfo(`Donation transaction confirmed: ${signature}`);
+
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/funds/${fund._id}/donate`, {
         amount: donationAmount,
         donorWallet: publicKey.toBase58(),
         txSignature: signature,
       });
 
-      toast.success(`Successfully donated ${donationAmount.toFixed(2)} SOL! Tx: ${signature.slice(0, 8)}...`);
-      router.push("/explore");
-    } catch (err: any) {
-      console.error("Donation error:", err);
-      const errorMsg = err.message || "Donation failed.";
+      const updatedFund: Fund = response.data;
+      logInfo(`Backend response for donation to fund ${fund._id}:`, updatedFund);
+
+      // Update local fund state
+      setFund(updatedFund);
+
+      // Enhanced toast message
+      let toastMessage = `Successfully donated ${donationAmount.toFixed(2)} SOL! Tx: ${signature.slice(0, 8)}...`;
+      if (updatedFund.status === "completed") {
+        toastMessage += ` Fund completed!`;
+      }
+      toast.success(toastMessage);
+
+      // Reset donation amount for next donation
+      setDonationAmount(minDonation);
+    } catch (err: unknown) {
+      logInfo("Donation error:", err);
+      const errorMsg = err instanceof Error 
+        ? (err.message.includes("User rejected") ? "Transaction cancelled in wallet" : err.message)
+        : "Donation failed.";
       setError(errorMsg);
       toast.error(errorMsg);
     } finally {
@@ -222,9 +243,9 @@ export default function FundDetail() {
 
       toast.success(response.data.message);
       setIsTransferred(true);
-    } catch (err: any) {
-      console.error("Transfer error:", err.response?.data || err);
-      const errorMsg = err.response?.data?.error || "Manual transfer failed due to server error.";
+    } catch (err: unknown) {
+      logInfo("Transfer error:", err);
+      const errorMsg = "Manual transfer failed due to server error.";
       setError(errorMsg);
       toast.error(errorMsg);
     } finally {
@@ -249,10 +270,10 @@ export default function FundDetail() {
       });
 
       toast.success(response.data.message);
-      setFund({ ...fund, tokenAddress: response.data.tokenAddress }); // Update local fund state
-    } catch (err: any) {
-      console.error("Launch error:", err.response?.data || err);
-      const errorMsg = err.response?.data?.error || "Manual token launch failed due to server error.";
+      setFund({ ...fund, tokenAddress: response.data.tokenAddress });
+    } catch (err: unknown) {
+      logInfo("Launch error:", err);
+      const errorMsg = "Manual token launch failed due to server error.";
       setError(errorMsg);
       toast.error(errorMsg);
     } finally {
@@ -260,7 +281,7 @@ export default function FundDetail() {
     }
   };
 
-  const handleBack = () => router.back();
+  const handleBack = () => router.push("/explore");
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
@@ -273,7 +294,7 @@ export default function FundDetail() {
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-3xl font-bold text-gray-900">{fund.name}</h1>
             <button onClick={handleBack} className="bg-gray-500 hover:bg-gray-600 text-white p-2 rounded">
-              Back
+              Back to Explore
             </button>
           </div>
           <div className="border border-gray-300 rounded-lg p-4 mb-6">
@@ -286,7 +307,7 @@ export default function FundDetail() {
                   sizes="(max-width: 768px) 100vw, 400px"
                   className="object-cover rounded-lg"
                   onError={() => {
-                    console.log("Image failed to load:", imageUrl);
+                    logInfo("Image failed to load:", imageUrl);
                     setImageUrl(null);
                   }}
                 />
@@ -381,6 +402,7 @@ export default function FundDetail() {
                       value={donationAmount}
                       onChange={(e) => setDonationAmount(parseFloat(e.target.value))}
                       className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                      disabled={donating}
                     />
                   </div>
                   <div className="mb-4">
@@ -399,11 +421,12 @@ export default function FundDetail() {
                         if (!isNaN(value)) setDonationAmount(Math.min(Math.max(value, minDonation), maxDonation));
                       }}
                       className="block w-full p-2 border rounded"
+                      disabled={donating}
                     />
                   </div>
                   <button
                     onClick={handleDonation}
-                    className="w-full bg-green-500 hover:bg-green-600 text-white p-2 rounded flex items-center justify-center"
+                    className="w-full bg-green-500 hover:bg-green-600 text-white p-2 rounded flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
                     disabled={!publicKey || donating}
                   >
                     {donating ? (

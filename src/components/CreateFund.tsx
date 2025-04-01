@@ -9,15 +9,20 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { toast, Toaster } from "sonner";
 
-let renderCount = 0;
-
 export default function CreateFund() {
-  renderCount++;
-  console.log(`CreateFund: Render count - ${renderCount}`);
-
   const { publicKey } = useWallet();
   const router = useRouter();
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    name: string;
+    tokenName: string;
+    tokenSymbol: string;
+    tokenDescription: string;
+    targetPercentage: number;
+    targetWallet: string;
+    tokenTwitter: string;
+    tokenTelegram: string;
+    tokenWebsite: string;
+  }>({
     name: "",
     tokenName: "",
     tokenSymbol: "",
@@ -30,10 +35,11 @@ export default function CreateFund() {
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [creationFee, setCreationFee] = useState<number | null>(null);
-  const [loadingFee, setLoadingFee] = useState(true);
-  const isMounted = useRef(true);
-  const hasFetched = useRef(false);
+  const [creationFee, setCreationFee] = useState<number>(0.1); // Default to 0.1 SOL
+  const [loadingFee, setLoadingFee] = useState<boolean>(true);
+  const [creating, setCreating] = useState<boolean>(false); // State for creation process
+  const isMounted = useRef<boolean>(true);
+  const hasFetched = useRef<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -53,16 +59,18 @@ export default function CreateFund() {
 
       try {
         setLoadingFee(true);
-        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/funds/fee`);
+        const response = await axios.get<{ creationFee: number }>(
+          `${process.env.NEXT_PUBLIC_API_URL}/funds/fee`
+        );
         if (isMounted.current) {
-          setCreationFee(response.data.creationFee);
+          setCreationFee(response.data.creationFee || 0.1); // Fallback to 0.1 SOL
           hasFetched.current = true;
         }
       } catch (error) {
         console.error("CreateFund: Failed to fetch creation fee:", error);
         if (isMounted.current) {
-          toast.error("Failed to load creation fee. Please try again later.");
-          setCreationFee(null);
+          toast.error("Failed to load creation fee. Using default 0.1 SOL.");
+          setCreationFee(0.1); // Fallback to 0.1 SOL
         }
       } finally {
         if (isMounted.current) setLoadingFee(false);
@@ -91,46 +99,45 @@ export default function CreateFund() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!publicKey || creationFee === null) {
-      toast.error("Cannot create fund: Creation fee not loaded or wallet not connected.");
+    if (!publicKey) {
+      toast.error("Wallet not connected. Please connect your wallet.");
       return;
     }
 
     if (!imageFile) {
-      toast.error("Please upload an image for your fund.");
+      toast.error("Image is required. Please upload an image for your fund.");
       return;
     }
 
     try {
-      new PublicKey(form.targetWallet);
-    } catch (err) {
-      toast.error("Invalid target wallet address. Please enter a valid Solana wallet address.");
+      setCreating(true); // Start spinner and disable button
+
+      new PublicKey(form.targetWallet); // Validate target wallet
+    } catch (err: unknown) {
+      setCreating(false);
+      toast.error(`Invalid target wallet address. Please enter a valid Solana wallet address. err: ${err}`);
       return;
     }
 
     try {
-      const connection = getConnection();
-      const solBalance = await connection.getBalance(publicKey) / LAMPORTS_PER_SOL;
+      const connection = await getConnection();
+      const solBalance = (await connection.getBalance(publicKey)) / LAMPORTS_PER_SOL;
       if (solBalance < creationFee + 0.005) {
         throw new Error(`Insufficient SOL. Please add at least ${creationFee + 0.005} SOL to your wallet.`);
       }
 
-      // Step 1: Create the fund to get fundWalletAddress
-      const fundResponse = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/funds`, {
-        ...form,
-        userWallet: publicKey.toBase58(),
-      });
+      // Step 1: Send 0.1 SOL to WEBSITE_WALLET
+      const websiteWallet = new PublicKey(process.env.NEXT_PUBLIC_WEBSITE_WALLET || "");
+      if (!process.env.NEXT_PUBLIC_WEBSITE_WALLET || !PublicKey.isOnCurve(websiteWallet)) {
+        throw new Error("Website wallet address is not configured or invalid.");
+      }
 
-      const fundId = fundResponse.data._id;
-      const fundWalletAddress = new PublicKey(fundResponse.data.fundWalletAddress);
-
-      // Step 2: Send CROWD_FUND_CREATION_FEE to fundWalletAddress
       const transaction = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
-          toPubkey: fundWalletAddress,
+          toPubkey: websiteWallet,
           lamports: creationFee * LAMPORTS_PER_SOL,
         })
       );
@@ -146,12 +153,19 @@ export default function CreateFund() {
       const { signature } = await provider.signAndSendTransaction(transaction);
       await connection.confirmTransaction(signature, "confirmed");
 
-      // Step 3: Update fund with transaction signature and confirm fee payment
-      const updateResponse = await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/funds/${fundId}`, {
-        txSignature: signature,
-      });
+      // Step 2: Create the fund with the transaction signature
+      const fundResponse = await axios.post<{ _id: string; fundWalletAddress: string; message: string }>(
+        `${process.env.NEXT_PUBLIC_API_URL}/funds`,
+        {
+          ...form,
+          userWallet: publicKey.toBase58(),
+          txSignature: signature,
+        }
+      );
 
-      // Step 4: Upload image
+      const fundId = fundResponse.data._id;
+
+      // Step 3: Upload the image
       const formData = new FormData();
       formData.append("image", imageFile);
       await axios.post(
@@ -162,10 +176,12 @@ export default function CreateFund() {
         }
       );
 
-      toast.success(`Fund created successfully! Transaction signature: ${signature}`, {
+      toast.success(`Fund created successfully! ${fundResponse.data.message}`, {
         duration: 3000,
         onAutoClose: () => router.push("/explore"),
       });
+
+      // Reset form
       setForm({
         name: "",
         tokenName: "",
@@ -179,15 +195,28 @@ export default function CreateFund() {
       });
       setImageFile(null);
       setImagePreview(null);
-      if (fileInputRef.current) fileInputRef.current.value = ""; // Reset file input
-    } catch (error: any) {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (error: unknown) {
       console.error(error);
-      const errorMsg = error.message || "Failed to create fund.";
-      if (errorMsg.includes("User rejected the request") || (error.code && error.code === 4001)) {
+
+      let errorMsg = "Failed to create fund.";
+      if (error instanceof Error) {
+        errorMsg = error.message || errorMsg;
+      }
+
+      const isRejected =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        (error as { code: number }).code === 4001;
+
+      if (errorMsg.includes("User rejected the request") || isRejected) {
         toast.info("Transaction canceled. Please try again if you wish to proceed.", { duration: 5000 });
       } else {
-        toast.error(error.response?.data?.error || errorMsg, { duration: 5000 });
+        toast.error(errorMsg, { duration: 5000 });
       }
+    } finally {
+      setCreating(false); // Stop spinner and re-enable button
     }
   };
 
@@ -197,7 +226,9 @@ export default function CreateFund() {
       <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-8 text-center">Start your Crowdfund</h1>
       <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg w-full max-w-2xl mx-auto">
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Fund Image (Required)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Token Image <span className="text-red-500">*</span>
+          </label>
           <div
             className={`w-full h-64 sm:h-72 bg-gray-200 rounded-lg flex items-center justify-center cursor-pointer overflow-hidden hover:bg-gray-300 ${
               !imagePreview ? "border-2 border-dashed border-gray-300" : "border-none"
@@ -213,7 +244,7 @@ export default function CreateFund() {
                 className="w-full h-full object-cover rounded-lg"
               />
             ) : (
-              <span className="text-gray-500 text-center px-4">Click to Select Image (Required)</span>
+              <span className="text-gray-500 text-center px-4">Click to Select Image</span>
             )}
           </div>
           <input
@@ -222,8 +253,10 @@ export default function CreateFund() {
             ref={fileInputRef}
             onChange={handleImageChange}
             className="hidden"
-            required
           />
+          {!imageFile && (
+            <p className="text-red-500 text-sm mt-1">An image is required to create your fund.</p>
+          )}
         </div>
 
         <div className="mb-4">
@@ -336,43 +369,43 @@ export default function CreateFund() {
 
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">Creation Fee</label>
-          <p className="text-gray-500">
-            {loadingFee ? "Loading..." : creationFee !== null ? `${creationFee} SOL` : "Unable to load fee"}
-          </p>
+          <p className="text-gray-500">{loadingFee ? "Loading..." : `${creationFee} SOL`}</p>
         </div>
 
         <button
           type="submit"
-          className="w-full bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-md flex items-center justify-center transition-colors duration-200"
-          disabled={loadingFee || creationFee === null || !imageFile}
+          className="w-full bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-md flex items-center justify-center transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          disabled={loadingFee || creating || !imageFile}
         >
-          {loadingFee && (
-            <svg
-              className="animate-spin h-5 w-5 mr-2 text-white"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-              ></path>
-            </svg>
+          {creating ? (
+            <>
+              <svg
+                className="animate-spin h-5 w-5 mr-2 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+              Creating Fund...
+            </>
+          ) : loadingFee ? (
+            "Loading Fee..."
+          ) : (
+            `Create Fund (${creationFee} SOL)`
           )}
-          {loadingFee
-            ? "Loading Fee..."
-            : creationFee !== null
-            ? `Create Fund (${creationFee} SOL)`
-            : "Unable to Load Fee"}
         </button>
       </form>
     </div>

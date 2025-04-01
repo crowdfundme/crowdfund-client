@@ -31,13 +31,29 @@ export default function Explore() {
       console.log("Completed funds response:", completedResponse.data);
       console.log("Completed fund IDs:", completedResponse.data.map((f: Fund) => f._id));
       setCompletedFunds(completedResponse.data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to fetch funds:", error);
-      const errorMsg = error.message || "Failed to fetch funds.";
+      const errorMsg = "Failed to fetch funds.";
       setError(errorMsg);
       toast.error(errorMsg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle donation success with updated fund data
+  const handleDonationSuccess = (updatedFund?: Fund) => {
+    if (updatedFund) {
+      setActiveFunds((prev) =>
+        prev.map((f) => (f._id === updatedFund._id ? updatedFund : f)).filter((f) => f.status === "active")
+      );
+      setCompletedFunds((prev) =>
+        updatedFund.status === "completed"
+          ? [...prev.filter((f) => f._id !== updatedFund._id), updatedFund]
+          : prev
+      );
+    } else {
+      fetchFunds(); // Fallback to full refresh if no updated fund provided
     }
   };
 
@@ -65,7 +81,7 @@ export default function Explore() {
       ) : activeFunds.length === 0 ? (
         <p className="text-gray-600 mb-6">No active crowdfunds available.</p>
       ) : (
-        <FundList funds={activeFunds} status="active" onDonationSuccess={fetchFunds} />
+        <FundList funds={activeFunds} status="active" onDonationSuccess={handleDonationSuccess} />
       )}
 
       <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Completed Crowdfunds</h2>
@@ -74,7 +90,7 @@ export default function Explore() {
       ) : completedFunds.length === 0 ? (
         <p className="text-gray-600">No completed crowdfunds yet.</p>
       ) : (
-        <FundList funds={completedFunds} status="completed" onDonationSuccess={fetchFunds} />
+        <FundList funds={completedFunds} status="completed" onDonationSuccess={handleDonationSuccess} />
       )}
     </div>
   );

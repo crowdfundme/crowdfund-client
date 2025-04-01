@@ -9,11 +9,12 @@ import { Fund } from "../types";
 import axios from "axios";
 import Link from "next/link";
 import { toast, Toaster } from "sonner";
+import { logInfo } from "../utils/logger";
 
 interface FundListProps {
   funds: Fund[];
   status: "active" | "completed";
-  onDonationSuccess?: () => void;
+  onDonationSuccess?: (updatedFund?: Fund) => void;
 }
 
 export default function FundList({ funds, status, onDonationSuccess }: FundListProps) {
@@ -22,7 +23,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
   const [minDonation, setMinDonation] = useState<number>(0.01);
   const [maxDonation, setMaxDonation] = useState<number>(10);
   const [error, setError] = useState<string | null>(null);
-  const [donating, setDonating] = useState<string | null>(null);
+  const [donating, setDonating] = useState<{ [key: string]: boolean }>({}); // Changed to object for per-fund tracking
   const [imageUrls, setImageUrls] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
@@ -38,6 +39,12 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
         }, {});
         setDonationAmounts(initialAmounts);
 
+        const initialDonatingState = funds.reduce((acc: { [key: string]: boolean }, fund: Fund) => {
+          acc[fund._id] = false;
+          return acc;
+        }, {});
+        setDonating(initialDonatingState);
+
         const imagePromises = funds.map((fund) =>
           fund.image
             ? axios.get(`${process.env.NEXT_PUBLIC_API_URL}/token-images/${fund._id}/token-image`)
@@ -51,7 +58,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
           return acc;
         }, {});
         setImageUrls(urls);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to fetch donation limits or images:", err);
         const errorMsg = "Failed to load donation limits or images. Using defaults.";
         setError(errorMsg);
@@ -72,7 +79,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
 
     const amount = donationAmounts[fundId];
     if (!amount || amount < minDonation || amount > maxDonation) {
-      const errorMsg = `Donation amount for fund ${fundId} must be between ${minDonation} and ${maxDonation} SOL`;
+      const errorMsg = `Donation amount must be between ${minDonation} and ${maxDonation} SOL`;
       setError(errorMsg);
       toast.error(errorMsg);
       return;
@@ -80,19 +87,19 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
 
     try {
       setError(null);
-      setDonating(fundId);
+      setDonating((prev) => ({ ...prev, [fundId]: true })); // Set donating state for this fund
 
-      const connection = getConnection();
-      const solBalance = await connection.getBalance(publicKey);
-      if (solBalance < 5000) {
-        throw new Error("Insufficient SOL for transaction fees. Please add at least 0.01 SOL to your wallet.");
+      const connection = await getConnection();
+      const solBalance = await connection.getBalance(publicKey) / LAMPORTS_PER_SOL;
+      if (solBalance < amount + 0.01) {
+        throw new Error(`Insufficient SOL. Need at least ${(amount + 0.01).toFixed(2)} SOL, have ${solBalance.toFixed(2)} SOL.`);
       }
 
       const transaction = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
           toPubkey: new PublicKey(fundWalletAddress),
-          lamports: amount * LAMPORTS_PER_SOL,
+          lamports: Math.round(amount * LAMPORTS_PER_SOL),
         })
       );
       const { blockhash } = await connection.getLatestBlockhash();
@@ -100,12 +107,13 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
       transaction.feePayer = publicKey;
 
       const provider = window.solana;
-      if (!provider || !provider.isPhantom) {
-        throw new Error("Phantom wallet not detected.");
+      if (!provider || !provider.signAndSendTransaction) {
+        throw new Error("Wallet not detected or incompatible. Please use a Solana-compatible wallet (e.g., Phantom).");
       }
 
       const { signature } = await provider.signAndSendTransaction(transaction);
       await connection.confirmTransaction(signature, "confirmed");
+      logInfo(`Transaction confirmed: ${signature}`);
 
       const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/funds/${fundId}/donate`, {
         amount,
@@ -113,15 +121,25 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
         txSignature: signature,
       });
 
-      toast.success(`Successfully donated ${amount.toFixed(2)} SOL! Transaction: ${signature.slice(0, 8)}...`);
-      if (onDonationSuccess) onDonationSuccess();
-    } catch (err: any) {
+      const updatedFund: Fund = response.data;
+      logInfo(`Backend response for donation to fund ${fundId}:`, updatedFund);
+
+      let toastMessage = `Successfully donated ${amount.toFixed(2)} SOL! Transaction: ${signature.slice(0, 8)}...`;
+      if (updatedFund.status === "completed") {
+        toastMessage += ` Fund completed! Token: ${updatedFund.tokenAddress?.slice(0, 4)}...${updatedFund.tokenAddress?.slice(-4)}`;
+      }
+      toast.success(toastMessage);
+
+      if (onDonationSuccess) {
+        onDonationSuccess(updatedFund);
+      }
+    } catch (err: unknown) {
       console.error("Donation failed:", err);
-      const errorMsg = err.message || "Donation failed. Please try again.";
+      const errorMsg = err instanceof Error ? err.message : "Donation failed. Please try again.";
       setError(errorMsg);
       toast.error(errorMsg);
     } finally {
-      setDonating(null);
+      setDonating((prev) => ({ ...prev, [fundId]: false })); // Reset donating state for this fund
     }
   };
 
@@ -190,34 +208,36 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleDonation(fund._id, fund.fundWalletAddress)}
-                      className="flex-1 bg-green-500 hover:bg-green-600 text-white p-2 rounded flex items-center justify-center"
-                      disabled={!publicKey || donating === fund._id}
+                      className="flex-1 bg-green-500 hover:bg-green-600 text-white p-2 rounded flex items-center justify-center transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      disabled={!publicKey || donating[fund._id]}
                     >
-                      {donating === fund._id ? (
-                        <svg
-                          className="animate-spin h-5 w-5 mr-2 text-white"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                          ></path>
-                        </svg>
-                      ) : null}
-                      {donating === fund._id
-                        ? "Donating..."
-                        : `Donate ${(donationAmounts[fund._id] || minDonation).toFixed(2)} SOL`}
+                      {donating[fund._id] ? (
+                        <>
+                          <svg
+                            className="animate-spin h-5 w-5 mr-2 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                            ></path>
+                          </svg>
+                          Donating...
+                        </>
+                      ) : (
+                        `Donate ${(donationAmounts[fund._id] || minDonation).toFixed(2)} SOL`
+                      )}
                     </button>
                     <Link href={`/fund/${fund._id}`} className="flex-1">
                       <button className="w-full bg-blue-500 hover:bg-blue-600 text-white p-2 rounded">View</button>

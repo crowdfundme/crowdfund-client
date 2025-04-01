@@ -1,10 +1,10 @@
-import { Connection, clusterApiUrl } from "@solana/web3.js";
+import { Connection} from "@solana/web3.js";
+import { getSolanaRpcUrl } from '../utils/getSolanaRpcUrl';
 
-// Function to get the Solana connection (created at runtime)
-export const getConnection = () => {
-  const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK || "devnet";
-  return new Connection(
-    network === "mainnet" ? clusterApiUrl("mainnet-beta") : clusterApiUrl("devnet"),
-    "confirmed"
-  );
+/**
+ * Get a Solana connection using the secure runtime RPC URL.
+ */
+export const getConnection = async (): Promise<Connection> => {
+  const rpcUrl = await getSolanaRpcUrl();
+  return new Connection(rpcUrl, "confirmed");
 };

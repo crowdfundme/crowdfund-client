@@ -1,27 +1,35 @@
 "use client";
 
-import { FC, ReactNode, useMemo } from "react";
+import { FC, ReactNode, useEffect, useState, useMemo } from "react";
 import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
-import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
-import { getConnection } from "../lib/solana";
-
 import "@solana/wallet-adapter-react-ui/styles.css";
 
 interface WalletProviderProps {
   children: ReactNode;
 }
 
-export const CustomWalletProvider: FC<WalletProviderProps> = ({ children }) => {
-  const network = (process.env.NEXT_PUBLIC_SOLANA_NETWORK || "devnet") as WalletAdapterNetwork;
-
-  const endpoint = useMemo(() => {
-    const connection = getConnection();
-    return connection.rpcEndpoint;
-  }, []);
+export const CustomWalletProvider: FC<WalletProviderProps> = ({ children }) => {  
+  const [endpoint, setEndpoint] = useState<string | null>(null);
 
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
+
+  useEffect(() => {
+    const fetchRpc = async () => {
+      try {
+        const res = await fetch("/api/solana-rpc");
+        const data = await res.json();
+        setEndpoint(data.rpcUrl);
+      } catch (err) {
+        console.error("Failed to fetch Solana RPC endpoint", err);
+      }
+    };
+
+    fetchRpc();
+  }, []);
+
+  if (!endpoint) return null; // Or return a loading spinner
 
   return (
     <ConnectionProvider endpoint={endpoint}>
