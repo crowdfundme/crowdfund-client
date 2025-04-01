@@ -11,11 +11,13 @@ import Image from "next/image";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
 import { toast, Toaster } from "sonner";
 import { logInfo } from "../../../utils/logger";
+import { useUser } from "../../../context/UserContext";
 
 export default function FundDetail() {
   const { id } = useParams();
   const { publicKey } = useWallet();
   const router = useRouter();
+  const { donating, setDonating } = useUser();
   const [fund, setFund] = useState<Fund | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [donationAmount, setDonationAmount] = useState<number>(0.01);
@@ -23,7 +25,6 @@ export default function FundDetail() {
   const [maxDonation, setMaxDonation] = useState<number>(10);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [donating, setDonating] = useState<boolean>(false);
   const [transferring, setTransferring] = useState<boolean>(false);
   const [launching, setLaunching] = useState<boolean>(false);
   const [isTransferred, setIsTransferred] = useState<boolean>(false);
@@ -159,9 +160,13 @@ export default function FundDetail() {
       return;
     }
 
+    const fundId = fund._id;
+    let isMounted = true;
+
     try {
       setError(null);
-      setDonating(true);
+      setDonating(fundId, true);
+      logInfo(`Starting donation for fund ${fundId}: ${donationAmount} SOL`);
 
       const connection = await getConnection();
       const solBalance = await connection.getBalance(publicKey) / LAMPORTS_PER_SOL;
@@ -189,40 +194,55 @@ export default function FundDetail() {
       const { signature } = await provider.signAndSendTransaction(transaction);
       toast.info("Transaction sent, awaiting confirmation...");
 
-      await connection.confirmTransaction(signature, "confirmed");
+      const confirmationPromise = connection.confirmTransaction(signature, "confirmed");
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Transaction confirmation timed out after 60 seconds")), 60000)
+      );
+      await Promise.race([confirmationPromise, timeoutPromise]);
       logInfo(`Donation transaction confirmed: ${signature}`);
 
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/funds/${fund._id}/donate`, {
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/funds/${fundId}/donate`, {
         amount: donationAmount,
         donorWallet: publicKey.toBase58(),
         txSignature: signature,
       });
 
       const updatedFund: Fund = response.data;
-      logInfo(`Backend response for donation to fund ${fund._id}:`, updatedFund);
+      logInfo(`Backend response for donation to fund ${fundId}:`, updatedFund);
 
-      // Update local fund state
-      setFund(updatedFund);
-
-      // Enhanced toast message
-      let toastMessage = `Successfully donated ${donationAmount.toFixed(2)} SOL! Tx: ${signature.slice(0, 8)}...`;
-      if (updatedFund.status === "completed") {
-        toastMessage += ` Fund completed!`;
+      if (isMounted) {
+        setFund(updatedFund);
+        let toastMessage = `Successfully donated ${donationAmount.toFixed(2)} SOL! Tx: ${signature.slice(0, 8)}...`;
+        if (updatedFund.status === "completed") {
+          toastMessage += ` Fund completed!`;
+        }
+        toast.success(toastMessage);
+        setDonationAmount(minDonation);
       }
-      toast.success(toastMessage);
-
-      // Reset donation amount for next donation
-      setDonationAmount(minDonation);
     } catch (err: unknown) {
       logInfo("Donation error:", err);
-      const errorMsg = err instanceof Error 
-        ? (err.message.includes("User rejected") ? "Transaction cancelled in wallet" : err.message)
-        : "Donation failed.";
-      setError(errorMsg);
-      toast.error(errorMsg);
+      let errorMsg = "Donation failed.";
+      if (err instanceof Error) {
+        errorMsg = err.message.includes("User rejected") ? "Transaction cancelled in wallet" : err.message;
+      }
+      if (axios.isAxiosError(err) && err.response) {
+        logInfo("Server error response:", err.response.data);
+        errorMsg = err.response.data.error || errorMsg;
+      }
+      if (isMounted) {
+        setError(errorMsg);
+        toast.error(errorMsg);
+      }
     } finally {
-      setDonating(false);
+      if (isMounted) {
+        setDonating(fundId, false);
+        logInfo(`Donation process completed for fund ${fundId}`);
+      }
     }
+
+    return () => {
+      isMounted = false;
+    };
   };
 
   const handleManualTransfer = async () => {
@@ -402,7 +422,7 @@ export default function FundDetail() {
                       value={donationAmount}
                       onChange={(e) => setDonationAmount(parseFloat(e.target.value))}
                       className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                      disabled={donating}
+                      disabled={donating[fund._id]}
                     />
                   </div>
                   <div className="mb-4">
@@ -421,15 +441,15 @@ export default function FundDetail() {
                         if (!isNaN(value)) setDonationAmount(Math.min(Math.max(value, minDonation), maxDonation));
                       }}
                       className="block w-full p-2 border rounded"
-                      disabled={donating}
+                      disabled={donating[fund._id]}
                     />
                   </div>
                   <button
                     onClick={handleDonation}
                     className="w-full bg-green-500 hover:bg-green-600 text-white p-2 rounded flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    disabled={!publicKey || donating}
+                    disabled={!publicKey || donating[fund._id]}
                   >
-                    {donating ? (
+                    {donating[fund._id] ? (
                       <svg
                         className="animate-spin h-5 w-5 mr-2 text-white"
                         xmlns="http://www.w3.org/2000/svg"
@@ -451,7 +471,7 @@ export default function FundDetail() {
                         ></path>
                       </svg>
                     ) : null}
-                    {donating ? "Donating..." : `Donate ${donationAmount.toFixed(2)} SOL`}
+                    {donating[fund._id] ? "Donating..." : `Donate ${donationAmount.toFixed(2)} SOL`}
                   </button>
                 </>
               ) : (
@@ -460,91 +480,87 @@ export default function FundDetail() {
             </div>
           )}
 
-          {fund.status === "completed" &&
-            fund.userId.walletAddress === publicKey?.toBase58() &&
-            !fund.tokenAddress && (
-              <div className="bg-white p-6 rounded-lg shadow-md mt-6">
-                <h2 className="text-xl font-semibold mb-4">Launch Token</h2>
-                <p className="text-gray-600 mb-4">
-                  The fund is complete but the token has not been created. Click below to manually launch the token.
-                </p>
-                <button
-                  onClick={handleManualLaunch}
-                  className="w-full bg-purple-500 hover:bg-purple-600 text-white p-2 rounded flex items-center justify-center"
-                  disabled={launching}
-                >
-                  {launching ? (
-                    <svg
-                      className="animate-spin h-5 w-5 mr-2 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      ></path>
-                    </svg>
-                  ) : null}
-                  {launching ? "Launching..." : "Launch Token"}
-                </button>
-              </div>
-            )}
+          {fund.status === "completed" && fund.userId.walletAddress === publicKey?.toBase58() && !fund.tokenAddress && (
+            <div className="bg-white p-6 rounded-lg shadow-md mt-6">
+              <h2 className="text-xl font-semibold mb-4">Launch Token</h2>
+              <p className="text-gray-600 mb-4">
+                The fund is complete but the token has not been created. Click below to manually launch the token.
+              </p>
+              <button
+                onClick={handleManualLaunch}
+                className="w-full bg-purple-500 hover:bg-purple-600 text-white p-2 rounded flex items-center justify-center"
+                disabled={launching}
+              >
+                {launching ? (
+                  <svg
+                    className="animate-spin h-5 w-5 mr-2 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    ></path>
+                  </svg>
+                ) : null}
+                {launching ? "Launching..." : "Launch Token"}
+              </button>
+            </div>
+          )}
 
-          {fund.status === "completed" &&
-            fund.userId.walletAddress === publicKey?.toBase58() &&
-            fund.tokenAddress && (
-              <div className="bg-white p-6 rounded-lg shadow-md mt-6">
-                <h2 className="text-xl font-semibold mb-4">Manual Token Transfer</h2>
-                {isTransferred ? (
-                  <p className="text-green-500">Tokens have been transferred to the target wallet.</p>
-                ) : (
-                  <>
-                    <p className="text-gray-600 mb-4">
-                      The fund is complete. Click below to manually transfer the created token to the target wallet.
-                    </p>
-                    <button
-                      onClick={handleManualTransfer}
-                      className="w-full bg-blue-500 hover:bg-blue-600 text-white p-2 rounded flex items-center justify-center"
-                      disabled={transferring}
-                    >
-                      {transferring ? (
-                        <svg
-                          className="animate-spin h-5 w-5 mr-2 text-white"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                          ></path>
-                        </svg>
-                      ) : null}
-                      {transferring ? "Transferring..." : "Transfer Tokens"}
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
+          {fund.status === "completed" && fund.userId.walletAddress === publicKey?.toBase58() && fund.tokenAddress && (
+            <div className="bg-white p-6 rounded-lg shadow-md mt-6">
+              <h2 className="text-xl font-semibold mb-4">Manual Token Transfer</h2>
+              {isTransferred ? (
+                <p className="text-green-500">Tokens have been transferred to the target wallet.</p>
+              ) : (
+                <>
+                  <p className="text-gray-600 mb-4">
+                    The fund is complete. Click below to manually transfer the created token to the target wallet.
+                  </p>
+                  <button
+                    onClick={handleManualTransfer}
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white p-2 rounded flex items-center justify-center"
+                    disabled={transferring}
+                  >
+                    {transferring ? (
+                      <svg
+                        className="animate-spin h-5 w-5 mr-2 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                        ></path>
+                      </svg>
+                    ) : null}
+                    {transferring ? "Transferring..." : "Transfer Tokens"}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </>
       ) : (
         <p className="text-gray-600">No fund data available yet.</p>

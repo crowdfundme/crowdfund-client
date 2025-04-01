@@ -10,6 +10,7 @@ import axios from "axios";
 import Link from "next/link";
 import { toast, Toaster } from "sonner";
 import { logInfo } from "../utils/logger";
+import { useUser } from "../context/UserContext";
 
 interface FundListProps {
   funds: Fund[];
@@ -19,11 +20,11 @@ interface FundListProps {
 
 export default function FundList({ funds, status, onDonationSuccess }: FundListProps) {
   const { publicKey } = useWallet();
+  const { donating, setDonating } = useUser();
   const [donationAmounts, setDonationAmounts] = useState<{ [key: string]: number }>({});
   const [minDonation, setMinDonation] = useState<number>(0.01);
   const [maxDonation, setMaxDonation] = useState<number>(10);
   const [error, setError] = useState<string | null>(null);
-  const [donating, setDonating] = useState<{ [key: string]: boolean }>({}); // Changed to object for per-fund tracking
   const [imageUrls, setImageUrls] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
@@ -38,12 +39,6 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
           return acc;
         }, {});
         setDonationAmounts(initialAmounts);
-
-        const initialDonatingState = funds.reduce((acc: { [key: string]: boolean }, fund: Fund) => {
-          acc[fund._id] = false;
-          return acc;
-        }, {});
-        setDonating(initialDonatingState);
 
         const imagePromises = funds.map((fund) =>
           fund.image
@@ -85,14 +80,17 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
       return;
     }
 
+    let isMounted = true;
+
     try {
       setError(null);
-      setDonating((prev) => ({ ...prev, [fundId]: true })); // Set donating state for this fund
+      setDonating(fundId, true);
+      logInfo(`Starting donation for fund ${fundId}: ${amount} SOL`);
 
       const connection = await getConnection();
       const solBalance = await connection.getBalance(publicKey) / LAMPORTS_PER_SOL;
       if (solBalance < amount + 0.01) {
-        throw new Error(`Insufficient SOL. Need at least ${(amount + 0.01).toFixed(2)} SOL, have ${solBalance.toFixed(2)} SOL.`);
+        throw new Error(`Insufficient SOL. Need at least ${(amount + 0.01).toFixed(2)} SOL, have ${solBalance.toFixed(2)} SOL`);
       }
 
       const transaction = new Transaction().add(
@@ -111,8 +109,15 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
         throw new Error("Wallet not detected or incompatible. Please use a Solana-compatible wallet (e.g., Phantom).");
       }
 
+      toast.info("Please confirm the transaction in your wallet...");
       const { signature } = await provider.signAndSendTransaction(transaction);
-      await connection.confirmTransaction(signature, "confirmed");
+      toast.info("Transaction sent, awaiting confirmation...");
+
+      const confirmationPromise = connection.confirmTransaction(signature, "confirmed");
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Transaction confirmation timed out after 60 seconds")), 60000)
+      );
+      await Promise.race([confirmationPromise, timeoutPromise]);
       logInfo(`Transaction confirmed: ${signature}`);
 
       const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/funds/${fundId}/donate`, {
@@ -124,23 +129,41 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
       const updatedFund: Fund = response.data;
       logInfo(`Backend response for donation to fund ${fundId}:`, updatedFund);
 
-      let toastMessage = `Successfully donated ${amount.toFixed(2)} SOL! Transaction: ${signature.slice(0, 8)}...`;
-      if (updatedFund.status === "completed") {
-        toastMessage += ` Fund completed! Token: ${updatedFund.tokenAddress?.slice(0, 4)}...${updatedFund.tokenAddress?.slice(-4)}`;
-      }
-      toast.success(toastMessage);
+      if (isMounted) {
+        let toastMessage = `Successfully donated ${amount.toFixed(2)} SOL! Transaction: ${signature.slice(0, 8)}...`;
+        if (updatedFund.status === "completed") {
+          toastMessage += ` Fund completed! Token: ${updatedFund.tokenAddress?.slice(0, 4)}...${updatedFund.tokenAddress?.slice(-4)}`;
+        }
+        toast.success(toastMessage);
 
-      if (onDonationSuccess) {
-        onDonationSuccess(updatedFund);
+        if (onDonationSuccess) {
+          onDonationSuccess(updatedFund);
+        }
       }
     } catch (err: unknown) {
-      console.error("Donation failed:", err);
-      const errorMsg = err instanceof Error ? err.message : "Donation failed. Please try again.";
-      setError(errorMsg);
-      toast.error(errorMsg);
+      logInfo("Donation error:", err);
+      let errorMsg = "Donation failed.";
+      if (err instanceof Error) {
+        errorMsg = err.message.includes("User rejected") ? "Transaction cancelled in wallet" : err.message;
+      }
+      if (axios.isAxiosError(err) && err.response) {
+        logInfo("Server error response:", err.response.data);
+        errorMsg = err.response.data.error || errorMsg;
+      }
+      if (isMounted) {
+        setError(errorMsg);
+        toast.error(errorMsg);
+      }
     } finally {
-      setDonating((prev) => ({ ...prev, [fundId]: false })); // Reset donating state for this fund
+      if (isMounted) {
+        setDonating(fundId, false);
+        logInfo(`Donation process completed for fund ${fundId}`);
+      }
     }
+
+    return () => {
+      isMounted = false;
+    };
   };
 
   return (
@@ -203,6 +226,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
                         }
                       }}
                       className="block w-full p-2 border rounded mt-1"
+                      disabled={donating[fund._id]}
                     />
                   </div>
                   <div className="flex gap-2">
