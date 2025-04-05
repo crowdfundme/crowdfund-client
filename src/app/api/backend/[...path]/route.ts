@@ -13,7 +13,6 @@ export async function POST(req: NextRequest, { params }: { params: { path: strin
   const url = new URL(`${process.env.API_URL}/${path.join("/")}`);
   req.nextUrl.searchParams.forEach((value, key) => url.searchParams.append(key, value));
   
-  // Use raw buffer for multipart/form-data
   const contentType = req.headers.get("Content-Type") || "application/json";
   let body: Buffer | string | undefined;
   if (contentType.includes("multipart/form-data")) {
@@ -26,6 +25,18 @@ export async function POST(req: NextRequest, { params }: { params: { path: strin
     body = await req.text();
     console.log(`[Proxy POST] Forwarding to: ${url.toString()} with body:`, body);
   }
+
+  return handleRequest(req, url.toString(), body);
+}
+
+export async function PUT(req: NextRequest, { params }: { params: { path: string[] } }) { // Added PUT handler
+  const { path } = params;
+  const url = new URL(`${process.env.API_URL}/${path.join("/")}`);
+  req.nextUrl.searchParams.forEach((value, key) => url.searchParams.append(key, value));
+  
+  const contentType = req.headers.get("Content-Type") || "application/json";
+  const body = await req.text(); // Assuming JSON for PUT, adjust if needed
+  console.log(`[Proxy PUT] Forwarding to: ${url.toString()} with body:`, body);
 
   return handleRequest(req, url.toString(), body);
 }
@@ -46,7 +57,6 @@ async function handleRequest(req: NextRequest, url: string, body?: Buffer | stri
       body,
     });
 
-    // Log full response details
     const responseText = await response.text();
     const responseHeaders = Object.fromEntries(response.headers.entries());
     console.log(`[Proxy] Response from ${url}:`, {
@@ -56,7 +66,6 @@ async function handleRequest(req: NextRequest, url: string, body?: Buffer | stri
       body: responseText,
     });
 
-    // Check if response is JSON
     const responseContentType = responseHeaders["content-type"] || "";
     let data;
     if (responseContentType.includes("application/json")) {
