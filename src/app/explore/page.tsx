@@ -16,22 +16,28 @@ export default function ExplorePage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Fetch initial active and completed funds
   const fetchFunds = async () => {
     try {
       setLoading(true);
       setError(null);
       console.log("Fetching latest active funds...");
-      const activeResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/funds?status=active&page=1&limit=5`);
+      const activeResponse = await axios.get("/api/backend/funds?status=active&page=1&limit=5");
       console.log("Active funds response:", activeResponse.data);
       setActiveFunds(activeResponse.data.funds);
 
       console.log("Fetching latest completed funds...");
-      const completedResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/funds?status=completed&page=1&limit=5`);
+      const completedResponse = await axios.get("/api/backend/funds?status=completed&page=1&limit=5");
       console.log("Completed funds response:", completedResponse.data);
-      setCompletedFunds(completedResponse.data.funds);
-    } catch (error: unknown) {
-      console.error("Failed to fetch funds:", error);
+      // Sort by completedAt descending to show latest completed first
+      const sortedCompleted = completedResponse.data.funds.sort((a: Fund, b: Fund) =>
+        new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime()
+      );
+      setCompletedFunds(sortedCompleted);
+    } catch (error) {
+      console.error("Error calling /api/backend/funds:", error);
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("Server response:", error.response.data);
+      }
       const errorMsg = "Failed to fetch funds.";
       setError(errorMsg);
       toast.error(errorMsg);
@@ -40,24 +46,25 @@ export default function ExplorePage() {
     }
   };
 
-  // Handle search input
   const handleSearch = async (term: string) => {
     if (!term.trim()) {
       setSearchResults([]);
       return;
     }
-
     try {
       setSearchLoading(true);
       setError(null);
       console.log(`Searching funds with term: ${term}`);
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/funds?search=${encodeURIComponent(term)}&page=1&limit=10`
+        `/api/backend/funds?search=${encodeURIComponent(term)}&page=1&limit=10`
       );
       console.log("Search results:", response.data);
       setSearchResults(response.data.funds);
-    } catch (error: unknown) {
-      console.error("Failed to search funds:", error);
+    } catch (error) {
+      console.error("Error calling /api/backend/funds:", error);
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("Server response:", error.response.data);
+      }
       const errorMsg = "Failed to search funds.";
       setError(errorMsg);
       toast.error(errorMsg);
@@ -66,29 +73,38 @@ export default function ExplorePage() {
     }
   };
 
-  // Debounce search to prevent excessive API calls
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       handleSearch(searchTerm);
-    }, 300); // 300ms debounce
-
+    }, 300);
     return () => clearTimeout(delayDebounceFn);
   }, [searchTerm]);
 
   const handleDonationSuccess = (updatedFund?: Fund) => {
     if (updatedFund) {
-      setActiveFunds((prev) =>
-        prev.map((f) => (f._id === updatedFund._id ? updatedFund : f)).filter((f) => f.status === "active")
-      );
-      setCompletedFunds((prev) =>
-        updatedFund.status === "completed"
-          ? [...prev.filter((f) => f._id !== updatedFund._id), updatedFund]
-          : prev
-      );
+      console.log("Handling donation success for fund:", updatedFund._id, "Status:", updatedFund.status);
+      setActiveFunds((prev) => {
+        // Remove the fund if it’s now completed, otherwise update it
+        const updated = prev.map((f) => (f._id === updatedFund._id ? updatedFund : f));
+        const filtered = updated.filter((f) => f.status === "active");
+        console.log("Updated activeFunds after donation:", filtered);
+        return filtered;
+      });
+      setCompletedFunds((prev) => {
+        // Avoid duplicates and sort by completedAt
+        const filtered = prev.filter((f) => f._id !== updatedFund._id);
+        const newCompleted = updatedFund.status === "completed" ? [...filtered, updatedFund] : filtered;
+        const sorted = newCompleted.sort((a, b) =>
+          new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime()
+        );
+        console.log("Updated completedFunds after donation:", sorted);
+        return sorted.slice(0, 5); // Keep only the latest 5
+      });
       setSearchResults((prev) =>
         prev.map((f) => (f._id === updatedFund._id ? updatedFund : f))
       );
     } else {
+      console.log("No updated fund provided, refetching all funds...");
       fetchFunds();
     }
   };
@@ -113,7 +129,6 @@ export default function ExplorePage() {
 
       {error && <p className="text-red-500 mb-4">{error}</p>}
 
-      {/* Search Results */}
       {searchTerm && (
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Search Results</h2>
@@ -127,7 +142,6 @@ export default function ExplorePage() {
         </div>
       )}
 
-      {/* Active Funds */}
       <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Latest Active Crowdfunds</h2>
         {loading ? (
@@ -146,7 +160,6 @@ export default function ExplorePage() {
         )}
       </div>
 
-      {/* Completed Funds */}
       <div className="mt-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Latest Completed Crowdfunds</h2>
         {loading ? (

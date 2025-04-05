@@ -56,16 +56,16 @@ export default function Header() {
       console.log("Header: User already registered for wallet:", walletAddress);
       return;
     }
-
     try {
-      console.log("Header: Registering user with wallet:", walletAddress);
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/users/register`, {
-        walletAddress,
-      });
+      const response = await axios.post("/api/backend/users/register", { walletAddress });
       console.log("Header: User registered:", response.data);
       sessionStorage.setItem(`registered_${walletAddress}`, "true");
     } catch (error) {
       console.error("Header: Failed to register user:", error);
+      // Optionally, notify user or handle specific errors
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("Server response:", error.response.data);
+      }
     }
   };
 
@@ -129,8 +129,8 @@ export default function Header() {
             {connecting
               ? "Connecting..."
               : connected && publicKey
-              ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}`
-              : "Connect Wallet"}
+                ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}`
+                : "Connect Wallet"}
           </button>
           {connected && publicKey && isWalletMenuOpen && (
             <div className="absolute top-full right-0 mt-2 w-48 bg-gray-800 text-white border border-gray-700 rounded-lg shadow-xl z-10">
@@ -192,9 +192,8 @@ export default function Header() {
                 <li>
                   <Link
                     href={publicKey ? `/profile/${publicKey.toBase58()}` : "#"}
-                    className={`block px-4 py-2 hover:bg-gray-700 rounded-b-lg ${
-                      publicKey ? "text-white" : "text-gray-400 cursor-not-allowed"
-                    }`}
+                    className={`block px-4 py-2 hover:bg-gray-700 rounded-b-lg ${publicKey ? "text-white" : "text-gray-400 cursor-not-allowed"
+                      }`}
                     onClick={(e) => {
                       if (!publicKey) {
                         e.preventDefault();

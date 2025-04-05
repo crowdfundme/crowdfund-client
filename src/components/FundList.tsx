@@ -30,7 +30,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
   useEffect(() => {
     const fetchLimitsAndImages = async () => {
       try {
-        const limitsResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/funds/fee`);
+        const limitsResponse = await axios.get("/api/backend/funds/fee");
         setMinDonation(limitsResponse.data.minDonation);
         setMaxDonation(limitsResponse.data.maxDonation);
 
@@ -42,7 +42,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
 
         const imagePromises = funds.map((fund) =>
           fund.image
-            ? axios.get(`${process.env.NEXT_PUBLIC_API_URL}/token-images/${fund._id}/token-image`)
+            ? axios.get(`/api/backend/token-images/${fund._id}/token-image`)
             : Promise.resolve(null)
         );
         const imageResponses = await Promise.all(imagePromises);
@@ -53,8 +53,11 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
           return acc;
         }, {});
         setImageUrls(urls);
-      } catch (err: unknown) {
-        console.error("Failed to fetch donation limits or images:", err);
+      } catch (error) {
+        console.error("Error calling /api/backend/funds/fee or /token-images:", error);
+        if (axios.isAxiosError(error) && error.response) {
+          console.error("Server response:", error.response.data);
+        }
         const errorMsg = "Failed to load donation limits or images. Using defaults.";
         setError(errorMsg);
         toast.error(errorMsg);
@@ -120,7 +123,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
       await Promise.race([confirmationPromise, timeoutPromise]);
       logInfo(`Transaction confirmed: ${signature}`);
 
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/funds/${fundId}/donate`, {
+      const response = await axios.post(`/api/backend/funds/${fundId}/donate`, {
         amount,
         donorWallet: publicKey.toBase58(),
         txSignature: signature,
@@ -140,15 +143,18 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
           onDonationSuccess(updatedFund);
         }
       }
-    } catch (err: unknown) {
-      logInfo("Donation error:", err);
+    } catch (error) {
+      console.error(`Error calling /api/backend/funds/${fundId}/donate:`, error);
       let errorMsg = "Donation failed.";
-      if (err instanceof Error) {
-        errorMsg = err.message.includes("User rejected") ? "Transaction cancelled in wallet" : err.message;
+      
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("Server response:", error.response.data);
+        logInfo("Server error response:", error.response.data);
+        errorMsg = error.response.data.error || error.response.data.message || "Unknown error";
       }
-      if (axios.isAxiosError(err) && err.response) {
-        logInfo("Server error response:", err.response.data);
-        errorMsg = err.response.data.error || errorMsg;
+      logInfo("Donation error:", error);      
+      if (error instanceof Error) {
+        errorMsg = error.message.includes("User rejected") ? "Transaction cancelled in wallet" : error.message;
       }
       if (isMounted) {
         setError(errorMsg);

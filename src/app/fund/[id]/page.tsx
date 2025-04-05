@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Transaction, SystemProgram, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
@@ -28,7 +28,11 @@ export default function FundDetail() {
   const [transferring, setTransferring] = useState<boolean>(false);
   const [launching, setLaunching] = useState<boolean>(false);
   const [isTransferred, setIsTransferred] = useState<boolean>(false);
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+  const [uploadingImage, setUploadingImage] = useState<boolean>(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const baseUrl = "/api/backend"; // Match CreateFund.tsx proxy path
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchFundAndLimits = async () => {
@@ -36,9 +40,7 @@ export default function FundDetail() {
         setLoading(true);
         setError(null);
         logInfo(`Fetching fund details for ID: ${id}`);
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL;
 
-        // Fetch donation limits
         const limitsUrl = `${baseUrl}/funds/fee`;
         logInfo("Fetching limits from:", limitsUrl);
         const limitsResponse = await axios.get(limitsUrl);
@@ -46,14 +48,12 @@ export default function FundDetail() {
         setMaxDonation(limitsResponse.data.maxDonation);
         setDonationAmount(limitsResponse.data.minDonation);
 
-        // Fetch fund by ID
         const fundUrl = `${baseUrl}/funds/${id}`;
         logInfo("Fetching fund from:", fundUrl);
         const fundResponse = await axios.get(fundUrl);
         const fundData = fundResponse.data;
         setFund(fundData);
 
-        // Fetch image if available
         if (fundData.image) {
           try {
             const imageUrl = `${baseUrl}/token-images/${fundData._id}/token-image`;
@@ -68,7 +68,6 @@ export default function FundDetail() {
           }
         }
 
-        // Check token balance for completed funds
         if (fundData.status === "completed" && fundData.tokenAddress) {
           const connection = await getConnection();
           const tokenMint = new PublicKey(fundData.tokenAddress);
@@ -95,7 +94,6 @@ export default function FundDetail() {
         }
         setError(errorMsg);
 
-        // Fallback logic
         try {
           const statuses = ["active", "completed"];
           let found = false;
@@ -147,6 +145,10 @@ export default function FundDetail() {
             toast.error("Fund not found in active or completed lists.");
           }
         } catch (fallbackErr: unknown) {
+          console.error("Error calling /funds in fallback:", fallbackErr);
+          if (axios.isAxiosError(fallbackErr) && fallbackErr.response) {
+            console.error("Server response:", fallbackErr.response.data);
+          }
           logInfo("Fallback fetch failed:", fallbackErr);
           const fallbackErrorMsg = axios.isAxiosError(fallbackErr) && fallbackErr.response
             ? fallbackErr.response.data.error || "Unknown error in fallback fetch"
@@ -160,6 +162,103 @@ export default function FundDetail() {
 
     if (id) fetchFundAndLimits();
   }, [id]);
+
+  const handleImageClick = () => {
+    if (fund?.userId.walletAddress === publicKey?.toBase58() && !imageUrl) {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const MAX_IMAGE_SIZE = 25 * 1024 * 1024; // Match server’s 25MB limit
+      if (file.size > MAX_IMAGE_SIZE) {
+        toast.error("Image file too large. Maximum size is 25MB.");
+        return;
+      }
+      setImageFile(file);
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+    }
+  };
+
+  const handleImageUpload = async () => {
+    if (!publicKey || !fund || fund.userId.walletAddress !== publicKey.toBase58()) {
+      toast.error("Only the fund creator can upload an image.");
+      return;
+    }
+    if (!imageFile) {
+      toast.error("Please select an image to upload.");
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", imageFile);
+
+      console.log("Uploading image for fund ID:", fund._id);
+      console.log("FormData contents:", Array.from(formData.entries()));
+
+      const response = await axios.post(
+        `${baseUrl}/token-images/${fund._id}/token-image`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" }, // Match CreateFund.tsx
+        }
+      );
+
+      setImageUrl(response.data.url);
+      setFund({ ...fund, image: response.data.tokenImageId });
+      setImageFile(null);
+      setImagePreview(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      toast.success("Image uploaded successfully!");
+    } catch (error) {
+      console.error("Image upload error:", error);
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("Server response:", error.response.data);
+        const errorMsg = error.response.data.error || "Failed to upload image.";
+        if (error.response.status === 400) {
+          toast.error("Invalid image file. Please upload a valid image (e.g., JPG, PNG).");
+        } else if (error.response.status === 413) {
+          toast.error("Image file too large. Maximum size is 25MB.");
+        } else {
+          toast.error(errorMsg);
+        }
+      } else {
+        toast.error("Failed to upload image due to an unexpected error.");
+      }
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleImageDelete = async () => {
+    if (!publicKey || !fund || fund.userId.walletAddress !== publicKey.toBase58()) {
+      toast.error("Only the fund creator can delete the image.");
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      await axios.delete(`${baseUrl}/token-images/${fund._id}/token-image`);
+      setImageUrl(null);
+      setFund({ ...fund, image: undefined });
+      toast.success("Image deleted successfully!");
+    } catch (error) {
+      console.error("Image delete error:", error);
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("Server response:", error.response.data);
+        toast.error(error.response.data.error || "Failed to delete image.");
+      } else {
+        toast.error("Failed to delete image due to an unexpected error.");
+      }
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const handleDonation = async () => {
     if (!publicKey || !fund) {
@@ -217,7 +316,7 @@ export default function FundDetail() {
       await Promise.race([confirmationPromise, timeoutPromise]);
       logInfo(`Donation transaction confirmed: ${signature}`);
 
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/funds/${fundId}/donate`, {
+      const response = await axios.post(`${baseUrl}/funds/${fundId}/donate`, {
         amount: donationAmount,
         donorWallet: publicKey.toBase58(),
         txSignature: signature,
@@ -235,15 +334,18 @@ export default function FundDetail() {
         toast.success(toastMessage);
         setDonationAmount(minDonation);
       }
-    } catch (err: unknown) {
-      logInfo("Donation error:", err);
+    } catch (error) {
       let errorMsg = "Donation failed.";
-      if (err instanceof Error) {
-        errorMsg = err.message.includes("User rejected") ? "Transaction cancelled in wallet" : err.message;
+      console.error(`Error calling ${baseUrl}/funds/${fundId}/donate:`, error);
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("Server response:", error.response.data);
+        logInfo("Server error response:", error.response.data);
+        errorMsg = error.response.data.error || errorMsg;
       }
-      if (axios.isAxiosError(err) && err.response) {
-        logInfo("Server error response:", err.response.data);
-        errorMsg = err.response.data.error || errorMsg;
+      logInfo("Donation error:", error);
+      
+      if (error instanceof Error) {
+        errorMsg = error.message.includes("User rejected") ? "Transaction cancelled in wallet" : error.message;
       }
       if (isMounted) {
         setError(errorMsg);
@@ -273,19 +375,25 @@ export default function FundDetail() {
       setError(null);
       setTransferring(true);
 
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/funds/${fund._id}/transfer`, {
+      const response = await axios.post(`${baseUrl}/funds/${fund._id}/transfer`, {
         userWallet: publicKey.toBase58(),
       });
 
       toast.success(response.data.message);
       setIsTransferred(true);
-    } catch (err: unknown) {
-      logInfo("Transfer error:", err);
-      const errorMsg = axios.isAxiosError(err) && err.response
-        ? err.response.data.error || "Manual transfer failed due to server error."
-        : "Manual transfer failed due to server error.";
-      setError(errorMsg);
-      toast.error(errorMsg);
+    } catch (error) {
+      console.error(`Error calling ${baseUrl}/funds/${fund._id}/transfer:`, error);
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("Server response:", error.response.data);
+        const errorMsg = error.response.data.error || "Manual transfer failed due to server error.";
+        setError(errorMsg);
+        toast.error(errorMsg);
+      } else {
+        logInfo("Transfer error:", error);
+        const errorMsg = "Manual transfer failed due to server error.";
+        setError(errorMsg);
+        toast.error(errorMsg);
+      }
     } finally {
       setTransferring(false);
     }
@@ -299,23 +407,34 @@ export default function FundDetail() {
       return;
     }
 
+    if (!imageUrl) {
+      toast.error("An image is required to launch the token on Pump.fun. Please upload an image first.");
+      return;
+    }
+
     try {
       setError(null);
       setLaunching(true);
 
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/funds/${fund._id}/launch`, {
+      const response = await axios.post(`${baseUrl}/funds/${fund._id}/launch`, {
         userWallet: publicKey.toBase58(),
       });
 
       toast.success(response.data.message);
       setFund({ ...fund, tokenAddress: response.data.tokenAddress });
-    } catch (err: unknown) {
-      logInfo("Launch error:", err);
-      const errorMsg = axios.isAxiosError(err) && err.response
-        ? err.response.data.error || "Manual token launch failed due to server error."
-        : "Manual token launch failed due to server error.";
-      setError(errorMsg);
-      toast.error(errorMsg);
+    } catch (error) {
+      console.error(`Error calling ${baseUrl}/funds/${fund._id}/launch:`, error);
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("Server response:", error.response.data);
+        const errorMsg = error.response.data.error || "Manual token launch failed due to server error.";
+        setError(errorMsg);
+        toast.error(errorMsg);
+      } else {
+        logInfo("Launch error:", error);
+        const errorMsg = "Manual token launch failed due to server error.";
+        setError(errorMsg);
+        toast.error(errorMsg);
+      }
     } finally {
       setLaunching(false);
     }
@@ -338,23 +457,91 @@ export default function FundDetail() {
             </button>
           </div>
           <div className="border border-gray-300 rounded-lg p-4 mb-6">
-            {imageUrl ? (
-              <div className="relative w-full h-48 mb-4">
+            <div
+              className={`w-full h-48 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden ${
+                fund.userId.walletAddress === publicKey?.toBase58() && !imageUrl
+                  ? "cursor-pointer hover:bg-gray-300 border-2 border-dashed border-gray-300"
+                  : "border-none"
+              }`}
+              onClick={handleImageClick}
+            >
+              {imageUrl ? (
                 <Image
                   src={imageUrl}
                   alt={fund.name}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 400px"
-                  className="object-cover rounded-lg"
+                  width={672} // Matches max-w-2xl (672px)
+                  height={192} // Matches h-48 (192px)
+                  className="w-full h-full object-cover rounded-lg"
                   onError={() => {
                     logInfo("Image failed to load:", imageUrl);
                     setImageUrl(null);
                   }}
                 />
-              </div>
-            ) : (
-              <div className="w-full h-48 bg-gray-200 rounded-lg mb-4 flex items-center justify-center">
-                <span className="text-gray-500">No Image Available</span>
+              ) : imagePreview ? (
+                <Image
+                  src={imagePreview}
+                  alt="Preview"
+                  width={672} // Matches max-w-2xl (672px)
+                  height={192} // Matches h-48 (192px)
+                  className="w-full h-full object-cover rounded-lg"
+                />
+              ) : (
+                <span className="text-gray-500">
+                  {fund.userId.walletAddress === publicKey?.toBase58()
+                    ? "Click to upload an image"
+                    : "No Image Available"}
+                </span>
+              )}
+            </div>
+            <input
+              type="file"
+              accept="image/*"
+              ref={fileInputRef}
+              onChange={handleImageChange}
+              className="hidden"
+            />
+            {fund.userId.walletAddress === publicKey?.toBase58() && (
+              <div className="flex space-x-2 mb-4 mt-2">
+                {!imageUrl && imagePreview && (
+                  <button
+                    onClick={handleImageUpload}
+                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-white p-2 rounded flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    disabled={uploadingImage}
+                  >
+                    {uploadingImage ? (
+                      <svg
+                        className="animate-spin h-5 w-5 mr-2 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                    ) : null}
+                    {uploadingImage ? "Uploading..." : "Upload Image"}
+                  </button>
+                )}
+                {imageUrl && (
+                  <button
+                    onClick={handleImageDelete}
+                    className="flex-1 bg-red-500 hover:bg-red-600 text-white p-2 rounded flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    disabled={uploadingImage}
+                  >
+                    {uploadingImage ? (
+                      <svg
+                        className="animate-spin h-5 w-5 mr-2 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                    ) : null}
+                    {uploadingImage ? "Deleting..." : "Delete Image"}
+                  </button>
+                )}
               </div>
             )}
             <p className="text-sm text-gray-700">
@@ -504,12 +691,12 @@ export default function FundDetail() {
             <div className="bg-white p-6 rounded-lg shadow-md mt-6">
               <h2 className="text-xl font-semibold mb-4">Launch Token</h2>
               <p className="text-gray-600 mb-4">
-                The fund is complete but the token has not been created. Click below to manually launch the token.
+                The fund is complete but the token has not been created. An image is required to launch on Pump.fun.
               </p>
               <button
                 onClick={handleManualLaunch}
-                className="w-full bg-purple-500 hover:bg-purple-600 text-white p-2 rounded flex items-center justify-center"
-                disabled={launching}
+                className="w-full bg-purple-500 hover:bg-purple-600 text-white p-2 rounded flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
+                disabled={launching || !imageUrl}
               >
                 {launching ? (
                   <svg
@@ -550,7 +737,7 @@ export default function FundDetail() {
                   </p>
                   <button
                     onClick={handleManualTransfer}
-                    className="w-full bg-blue-500 hover:bg-blue-600 text-white p-2 rounded flex items-center justify-center"
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white p-2 rounded flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
                     disabled={transferring}
                   >
                     {transferring ? (

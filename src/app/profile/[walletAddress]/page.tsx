@@ -31,10 +31,13 @@ export default function UserProfile() {
     const fetchProfile = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/users/${walletAddress}`);
+        const response = await axios.get(`/api/backend/users/${walletAddress}`);
         setProfile(response.data);
       } catch (error) {
-        console.error("Failed to fetch profile:", error);
+        console.error(`Error calling /api/backend/users/${walletAddress}:`, error);
+        if (axios.isAxiosError(error) && error.response) {
+          console.error("Server response:", error.response.data);
+        }
       } finally {
         setLoading(false);
       }

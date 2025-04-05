@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useRouter, useParams } from "next/navigation";
+import axios from "axios";
 
 interface UserProfile {
   walletAddress: string;
@@ -29,13 +30,15 @@ export default function UserProfileEdit() {
 
     const fetchProfile = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${walletAddress}`);
-        if (!response.ok) throw new Error("Failed to fetch profile");
-        const data: UserProfile = await response.json();
-        setName(data.name || "");
-        setEmail(data.email || "");
-      } catch (err) {
-        setMessage((err as Error).message || "Error loading profile");
+        const response = await axios.get(`/api/backend/users/${walletAddress}`);
+        setName(response.data.name || "");
+        setEmail(response.data.email || "");
+      } catch (error) {
+        console.error(`Error calling /api/backend/users/${walletAddress}:`, error);
+        if (axios.isAxiosError(error) && error.response) {
+          console.error("Server response:", error.response.data);
+        }
+        setMessage("Error loading profile");
       } finally {
         setLoading(false);
       }
@@ -52,22 +55,17 @@ export default function UserProfileEdit() {
     }
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/update/${walletAddress}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email }),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        setMessage("Profile updated successfully!");
-        setTimeout(() => router.push(`/profile/${walletAddress}`), 1500);
-      } else {
-        setMessage(data.error || "Failed to update profile.");
-      }
+      const response = await axios.put(`/api/backend/users/update/${walletAddress}`, { name, email });
+      setMessage("Profile updated successfully!");
+      setTimeout(() => router.push(`/profile/${walletAddress}`), 1500);
     } catch (error) {
-      setMessage("Error updating profile.");
-      console.error(error);
+      console.error(`Error calling /api/backend/users/update/${walletAddress}:`, error);
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("Server response:", error.response.data);
+        setMessage(error.response.data.error || "Failed to update profile.");
+      } else {
+        setMessage("Error updating profile.");
+      }
     }
   };
 
@@ -75,10 +73,7 @@ export default function UserProfileEdit() {
     router.push(`/profile/${walletAddress}`);
   };
 
-  if (!publicKey || publicKey.toBase58() !== walletAddress) {
-    return null; // Redirect handled in useEffect
-  }
-
+  if (!publicKey || publicKey.toBase58() !== walletAddress) return null;
   if (loading) return <div className="p-6">Loading...</div>;
 
   return (

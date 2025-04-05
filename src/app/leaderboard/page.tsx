@@ -30,12 +30,12 @@ export default function LeaderboardPage() {
         setError(null);
 
         // Fetch total leaderboard
-        const totalResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/users/leaderboard/total`);
+        const totalResponse = await axios.get("/api/backend/users/leaderboard/total");
         console.log("Total leaderboard response:", totalResponse.data);
         setTotalLeaderboard(Array.isArray(totalResponse.data) ? totalResponse.data : []);
 
         // Fetch active funds
-        const fundsResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/funds?status=active`);
+        const fundsResponse = await axios.get("/api/backend/funds?status=active");
         console.log("Funds response:", fundsResponse.data);
         const fundsData = Array.isArray(fundsResponse.data.funds) ? fundsResponse.data.funds : [];
         setFunds(fundsData);
@@ -44,8 +44,11 @@ export default function LeaderboardPage() {
         } else {
           setSelectedFundId(null);
         }
-      } catch (error: unknown) {
-        console.error("Failed to fetch leaderboard data:", error);
+      } catch (error) {
+        console.error("Error calling /api/backend/users/leaderboard/total or /funds:", error);
+        if (axios.isAxiosError(error) && error.response) {
+          console.error("Server response:", error.response.data);
+        }
         setError("Failed to load leaderboard data.");
         setTotalLeaderboard([]);
         setFunds([]);
@@ -66,14 +69,15 @@ export default function LeaderboardPage() {
 
     const fetchFundLeaderboard = async () => {
       try {
-        const response = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL}/users/leaderboard/fund/${selectedFundId}`
-        );
+        const response = await axios.get(`/api/backend/users/leaderboard/fund/${selectedFundId}`);
         console.log(`Fund leaderboard response for ${selectedFundId}:`, response.data);
         setFundLeaderboard(Array.isArray(response.data.leaderboard) ? response.data.leaderboard : []);
         setFundName(response.data.fundName || "Unknown Fund");
-      } catch (error: unknown) {
-        console.error(`Failed to fetch leaderboard for fund ${selectedFundId}:`, error);
+      } catch (error) {
+        console.error(`Error calling /api/backend/users/leaderboard/fund/${selectedFundId}:`, error);
+        if (axios.isAxiosError(error) && error.response) {
+          console.error("Server response:", error.response.data);
+        }
         setFundLeaderboard([]);
         setFundName("Error Loading Fund");
       }

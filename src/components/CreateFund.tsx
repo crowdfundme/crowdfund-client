@@ -37,7 +37,7 @@ export default function CreateFund() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [creationFee, setCreationFee] = useState<number>(0.1); // Default to 0.1 SOL
   const [loadingFee, setLoadingFee] = useState<boolean>(true);
-  const [creating, setCreating] = useState<boolean>(false); // State for creation process
+  const [creating, setCreating] = useState<boolean>(false);
   const isMounted = useRef<boolean>(true);
   const hasFetched = useRef<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,28 +49,27 @@ export default function CreateFund() {
     const fetchFee = async () => {
       if (hasFetched.current) return;
 
-      if (!process.env.NEXT_PUBLIC_API_URL) {
-        if (isMounted.current) {
-          toast.error("API URL is not configured. Please contact support.");
-          setLoadingFee(false);
-        }
-        return;
-      }
-
       try {
         setLoadingFee(true);
-        const response = await axios.get<{ creationFee: number }>(
-          `${process.env.NEXT_PUBLIC_API_URL}/funds/fee`
-        );
+        const response = await axios.get("/api/backend/funds/fee", {
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+            Expires: "0",
+          },
+        });
         if (isMounted.current) {
-          setCreationFee(response.data.creationFee || 0.1); // Fallback to 0.1 SOL
+          setCreationFee(response.data.creationFee || 0.1);
           hasFetched.current = true;
         }
       } catch (error) {
-        console.error("CreateFund: Failed to fetch creation fee:", error);
+        console.error("Error calling /api/backend/funds/fee:", error);
+        if (axios.isAxiosError(error) && error.response) {
+          console.error("Server response:", error.response.data);
+        }
         if (isMounted.current) {
           toast.error("Failed to load creation fee. Using default 0.1 SOL.");
-          setCreationFee(0.1); // Fallback to 0.1 SOL
+          setCreationFee(0.1);
         }
       } finally {
         if (isMounted.current) setLoadingFee(false);
@@ -95,7 +94,6 @@ export default function CreateFund() {
       setImageFile(file);
       const previewUrl = URL.createObjectURL(file);
       setImagePreview(previewUrl);
-      return () => URL.revokeObjectURL(previewUrl);
     }
   };
 
@@ -111,13 +109,21 @@ export default function CreateFund() {
       return;
     }
 
-    try {
-      setCreating(true); // Start spinner and disable button
+    setCreating(true);
 
-      new PublicKey(form.targetWallet); // Validate target wallet
-    } catch (err: unknown) {
+    // Validate target wallet
+    console.log("[handleSubmit] Validating targetWallet:", form.targetWallet);
+    if (!form.targetWallet || form.targetWallet.trim() === "") {
       setCreating(false);
-      toast.error(`Invalid target wallet address. Please enter a valid Solana wallet address. err: ${err}`);
+      toast.error("Target wallet address is required.");
+      return;
+    }
+    try {
+      new PublicKey(form.targetWallet);
+    } catch (err) {
+      setCreating(false);
+      console.error("[handleSubmit] Invalid targetWallet:", err);
+      toast.error("Invalid target wallet address. Please enter a valid Solana public key.");
       return;
     }
 
@@ -128,10 +134,20 @@ export default function CreateFund() {
         throw new Error(`Insufficient SOL. Please add at least ${creationFee + 0.005} SOL to your wallet.`);
       }
 
-      // Step 1: Send 0.1 SOL to WEBSITE_WALLET
-      const websiteWallet = new PublicKey(process.env.NEXT_PUBLIC_WEBSITE_WALLET || "");
-      if (!process.env.NEXT_PUBLIC_WEBSITE_WALLET || !PublicKey.isOnCurve(websiteWallet)) {
-        throw new Error("Website wallet address is not configured or invalid.");
+      // Step 1: Send SOL to WEBSITE_WALLET
+      console.log("[handleSubmit] WEBSITE_WALLET:", process.env.NEXT_PUBLIC_WEBSITE_WALLET);
+      const websiteWalletKey = process.env.NEXT_PUBLIC_WEBSITE_WALLET;
+      if (!websiteWalletKey) {
+        throw new Error("Website wallet address is not configured in the environment.");
+      }
+      let websiteWallet: PublicKey;
+      try {
+        websiteWallet = new PublicKey(websiteWalletKey);
+        if (!PublicKey.isOnCurve(websiteWallet)) {
+          throw new Error("Website wallet address is not a valid Solana public key.");
+        }
+      } catch (err) {
+        throw new Error(`Invalid website wallet address in environment: ${err}`);
       }
 
       const transaction = new Transaction().add(
@@ -154,27 +170,29 @@ export default function CreateFund() {
       await connection.confirmTransaction(signature, "confirmed");
 
       // Step 2: Create the fund with the transaction signature
-      const fundResponse = await axios.post<{ _id: string; fundWalletAddress: string; message: string }>(
-        `${process.env.NEXT_PUBLIC_API_URL}/funds`,
-        {
-          ...form,
-          userWallet: publicKey.toBase58(),
-          txSignature: signature,
-        }
-      );
+      const fundResponse = await axios.post("/api/backend/funds", {
+        ...form,
+        userWallet: publicKey.toBase58(),
+        txSignature: signature,
+      });
 
       const fundId = fundResponse.data._id;
 
       // Step 3: Upload the image
       const formData = new FormData();
       formData.append("image", imageFile);
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/token-images/${fundId}/token-image`,
-        formData,
-        {
+      try {
+        await axios.post(`/api/backend/token-images/${fundId}/token-image`, formData, {
           headers: { "Content-Type": "multipart/form-data" },
+        });
+      } catch (imageError) {
+        if (axios.isAxiosError(imageError) && imageError.response?.status === 400) {
+          toast.error("Invalid image file. Please upload a valid image (e.g., JPG, PNG). Fund created, but image upload failed.");
+          // Continue despite image failure
+        } else {
+          throw imageError; // Rethrow other errors (e.g., 500)
         }
-      );
+      }
 
       toast.success(`Fund created successfully! ${fundResponse.data.message}`, {
         duration: 3000,
@@ -196,27 +214,30 @@ export default function CreateFund() {
       setImageFile(null);
       setImagePreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
-    } catch (error: unknown) {
-      console.error(error);
-
-      let errorMsg = "Failed to create fund.";
-      if (error instanceof Error) {
-        errorMsg = error.message || errorMsg;
-      }
-
-      const isRejected =
-        typeof error === "object" &&
-        error !== null &&
-        "code" in error &&
-        (error as { code: number }).code === 4001;
-
-      if (errorMsg.includes("User rejected the request") || isRejected) {
-        toast.info("Transaction canceled. Please try again if you wish to proceed.", { duration: 5000 });
+    } catch (error) {
+      console.error("Error in fund creation:", error);
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("Server response:", error.response.data);
+        toast.error(error.response.data.error || "Failed to create fund.", { duration: 5000 });
       } else {
-        toast.error(errorMsg, { duration: 5000 });
+        let errorMsg = "Failed to create fund.";
+        if (error instanceof Error) {
+          errorMsg = error.message || errorMsg;
+        }
+        const isRejected =
+          typeof error === "object" &&
+          error !== null &&
+          "code" in error &&
+          (error as { code: number }).code === 4001;
+
+        if (errorMsg.includes("User rejected the request") || isRejected) {
+          toast.info("Transaction canceled. Please try again if you wish to proceed.", { duration: 5000 });
+        } else {
+          toast.error(errorMsg, { duration: 5000 });
+        }
       }
     } finally {
-      setCreating(false); // Stop spinner and re-enable button
+      setCreating(false);
     }
   };
 
@@ -337,7 +358,7 @@ export default function CreateFund() {
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">Twitter URL (optional)</label>
           <input
-            type="text"
+            type="url"
             placeholder="Enter Twitter URL"
             value={form.tokenTwitter}
             onChange={(e) => setForm({ ...form, tokenTwitter: e.target.value })}
@@ -348,7 +369,7 @@ export default function CreateFund() {
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">Telegram URL (optional)</label>
           <input
-            type="text"
+            type="url"
             placeholder="Enter Telegram URL"
             value={form.tokenTelegram}
             onChange={(e) => setForm({ ...form, tokenTelegram: e.target.value })}
@@ -359,7 +380,7 @@ export default function CreateFund() {
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">Website URL (optional)</label>
           <input
-            type="text"
+            type="url"
             placeholder="Enter website URL"
             value={form.tokenWebsite}
             onChange={(e) => setForm({ ...form, tokenWebsite: e.target.value })}
@@ -367,15 +388,17 @@ export default function CreateFund() {
           />
         </div>
 
-        <div className="mb-4">
+        <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-1">Creation Fee</label>
-          <p className="text-gray-500">{loadingFee ? "Loading..." : `${creationFee} SOL`}</p>
+          <p className="text-gray-500">
+            {loadingFee ? "Loading..." : `${creationFee.toFixed(2)} SOL`}
+          </p>
         </div>
 
         <button
           type="submit"
-          className="w-full bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-md flex items-center justify-center transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
-          disabled={loadingFee || creating || !imageFile}
+          disabled={!publicKey || creating || loadingFee || !imageFile}
+          className="w-full bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-md font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center transition-colors duration-200"
         >
           {creating ? (
             <>
@@ -385,14 +408,7 @@ export default function CreateFund() {
                 fill="none"
                 viewBox="0 0 24 24"
               >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path
                   className="opacity-75"
                   fill="currentColor"
@@ -404,7 +420,7 @@ export default function CreateFund() {
           ) : loadingFee ? (
             "Loading Fee..."
           ) : (
-            `Create Fund (${creationFee} SOL)`
+            `Create Fund (${creationFee.toFixed(2)} SOL)`
           )}
         </button>
       </form>
