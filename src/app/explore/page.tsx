@@ -82,23 +82,26 @@ export default function ExplorePage() {
 
   const handleDonationSuccess = (updatedFund?: Fund) => {
     if (updatedFund) {
-      console.log("Handling donation success for fund:", updatedFund._id, "Status:", updatedFund.status);
+      console.log("Handling donation success for fund:", {
+        id: updatedFund._id,
+        status: updatedFund.status,
+        currentDonatedSol: updatedFund.currentDonatedSol,
+        targetSolAmount: updatedFund.targetSolAmount,
+      });
       setActiveFunds((prev) => {
-        // Remove the fund if it’s now completed, otherwise update it
         const updated = prev.map((f) => (f._id === updatedFund._id ? updatedFund : f));
         const filtered = updated.filter((f) => f.status === "active");
         console.log("Updated activeFunds after donation:", filtered);
         return filtered;
       });
       setCompletedFunds((prev) => {
-        // Avoid duplicates and sort by completedAt
         const filtered = prev.filter((f) => f._id !== updatedFund._id);
         const newCompleted = updatedFund.status === "completed" ? [...filtered, updatedFund] : filtered;
         const sorted = newCompleted.sort((a, b) =>
           new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime()
         );
         console.log("Updated completedFunds after donation:", sorted);
-        return sorted.slice(0, 5); // Keep only the latest 5
+        return sorted.slice(0, 5);
       });
       setSearchResults((prev) =>
         prev.map((f) => (f._id === updatedFund._id ? updatedFund : f))

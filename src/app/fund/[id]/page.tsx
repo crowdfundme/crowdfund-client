@@ -19,6 +19,7 @@ export default function FundDetail() {
   const router = useRouter();
   const { donating, setDonating } = useUser();
   const [fund, setFund] = useState<Fund | null>(null);
+  const [isCompleted, setIsCompleted] = useState<boolean>(false); // New state for completion status
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [donationAmount, setDonationAmount] = useState<number>(0.01);
   const [minDonation, setMinDonation] = useState<number>(0.01);
@@ -31,7 +32,7 @@ export default function FundDetail() {
   const [uploadingImage, setUploadingImage] = useState<boolean>(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const baseUrl = "/api/backend"; // Match CreateFund.tsx proxy path
+  const baseUrl = "/api/backend"; // Match your proxy path
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -41,6 +42,7 @@ export default function FundDetail() {
         setError(null);
         logInfo(`Fetching fund details for ID: ${id}`);
 
+        // Fetch donation limits
         const limitsUrl = `${baseUrl}/funds/fee`;
         logInfo("Fetching limits from:", limitsUrl);
         const limitsResponse = await axios.get(limitsUrl);
@@ -48,12 +50,20 @@ export default function FundDetail() {
         setMaxDonation(limitsResponse.data.maxDonation);
         setDonationAmount(limitsResponse.data.minDonation);
 
+        // Fetch fund details
         const fundUrl = `${baseUrl}/funds/${id}`;
         logInfo("Fetching fund from:", fundUrl);
         const fundResponse = await axios.get(fundUrl);
         const fundData = fundResponse.data;
         setFund(fundData);
 
+        // Fetch fund completion status
+        const statusUrl = `${baseUrl}/funds/${id}/status`;
+        logInfo("Fetching fund status from:", statusUrl);
+        const statusResponse = await axios.get(statusUrl);
+        setIsCompleted(statusResponse.data.isCompleted);
+
+        // Fetch image if available
         if (fundData.image) {
           try {
             const imageUrl = `${baseUrl}/token-images/${fundData._id}/token-image`;
@@ -68,6 +78,7 @@ export default function FundDetail() {
           }
         }
 
+        // Check token transfer status if completed
         if (fundData.status === "completed" && fundData.tokenAddress) {
           const connection = await getConnection();
           const tokenMint = new PublicKey(fundData.tokenAddress);
@@ -94,6 +105,7 @@ export default function FundDetail() {
         }
         setError(errorMsg);
 
+        // Fallback logic
         try {
           const statuses = ["active", "completed"];
           let found = false;
@@ -107,6 +119,11 @@ export default function FundDetail() {
               setFund(foundFund);
               setError(null);
               found = true;
+
+              // Fetch status in fallback
+              const statusUrl = `${baseUrl}/funds/${id}/status`;
+              const statusResponse = await axios.get(statusUrl);
+              setIsCompleted(statusResponse.data.isCompleted);
 
               if (foundFund.image) {
                 try {
@@ -205,7 +222,7 @@ export default function FundDetail() {
         `${baseUrl}/token-images/${fund._id}/token-image`,
         formData,
         {
-          headers: { "Content-Type": "multipart/form-data" }, // Match CreateFund.tsx
+          headers: { "Content-Type": "multipart/form-data" },
         }
       );
 
@@ -267,28 +284,28 @@ export default function FundDetail() {
       toast.error(errorMsg);
       return;
     }
-
+  
     if (donationAmount < minDonation || donationAmount > maxDonation) {
       const errorMsg = `Donation amount must be between ${minDonation.toFixed(2)} and ${maxDonation.toFixed(2)} SOL`;
       setError(errorMsg);
       toast.error(errorMsg);
       return;
     }
-
+  
     const fundId = fund._id;
     let isMounted = true;
-
+  
     try {
       setError(null);
       setDonating(fundId, true);
       logInfo(`Starting donation for fund ${fundId}: ${donationAmount} SOL`);
-
+  
       const connection = await getConnection();
-      const solBalance = await connection.getBalance(publicKey) / LAMPORTS_PER_SOL;
+      const solBalance = (await connection.getBalance(publicKey)) / LAMPORTS_PER_SOL;
       if (solBalance < donationAmount + 0.01) {
         throw new Error(`Insufficient SOL. Need at least ${(donationAmount + 0.01).toFixed(2)} SOL, have ${solBalance.toFixed(2)} SOL`);
       }
-
+  
       const transaction = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
@@ -299,34 +316,35 @@ export default function FundDetail() {
       const { blockhash } = await connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = publicKey;
-
+  
       const provider = window.solana;
       if (!provider || !provider.signAndSendTransaction) {
         throw new Error("Wallet not detected or incompatible. Please use a Solana-compatible wallet (e.g., Phantom).");
       }
-
+  
       toast.info("Please confirm the transaction in your wallet...");
       const { signature } = await provider.signAndSendTransaction(transaction);
       toast.info("Transaction sent, awaiting confirmation...");
-
+  
       const confirmationPromise = connection.confirmTransaction(signature, "confirmed");
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error("Transaction confirmation timed out after 60 seconds")), 60000)
       );
       await Promise.race([confirmationPromise, timeoutPromise]);
       logInfo(`Donation transaction confirmed: ${signature}`);
-
+  
       const response = await axios.post(`${baseUrl}/funds/${fundId}/donate`, {
         amount: donationAmount,
         donorWallet: publicKey.toBase58(),
         txSignature: signature,
       });
-
+  
       const updatedFund: Fund = response.data;
       logInfo(`Backend response for donation to fund ${fundId}:`, updatedFund);
-
+  
       if (isMounted) {
         setFund(updatedFund);
+        setIsCompleted(updatedFund.status === "completed"); // Update status after donation
         let toastMessage = `Successfully donated ${donationAmount.toFixed(2)} SOL! Tx: ${signature.slice(0, 8)}...`;
         if (updatedFund.status === "completed") {
           toastMessage += ` Fund completed!`;
@@ -340,16 +358,18 @@ export default function FundDetail() {
       if (axios.isAxiosError(error) && error.response) {
         console.error("Server response:", error.response.data);
         logInfo("Server error response:", error.response.data);
-        errorMsg = error.response.data.error || errorMsg;
-      }
-      logInfo("Donation error:", error);
-      
-      if (error instanceof Error) {
+        errorMsg = error.response.data.error || errorMsg; // Use the specific backend error message
+      } else if (error instanceof Error) {
         errorMsg = error.message.includes("User rejected") ? "Transaction cancelled in wallet" : error.message;
       }
+      logInfo("Donation error:", error);
+  
       if (isMounted) {
         setError(errorMsg);
         toast.error(errorMsg);
+        if (errorMsg.includes("Crowdfund is already completed")) {
+          setIsCompleted(true); // Update UI to reflect completed status
+        }
       }
     } finally {
       if (isMounted) {
@@ -357,7 +377,7 @@ export default function FundDetail() {
         logInfo(`Donation process completed for fund ${fundId}`);
       }
     }
-
+  
     return () => {
       isMounted = false;
     };
@@ -611,7 +631,7 @@ export default function FundDetail() {
             </div>
           </div>
 
-          {fund.status === "active" && (
+          {!isCompleted ? (
             <div className="bg-white p-6 rounded-lg shadow-md">
               <h2 className="text-xl font-semibold mb-4">Donate to {fund.name}</h2>
               {publicKey ? (
@@ -685,13 +705,18 @@ export default function FundDetail() {
                 <p className="text-gray-600">Please connect your wallet to donate.</p>
               )}
             </div>
+          ) : (
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <h2 className="text-xl font-semibold mb-4 text-green-600">Crowdfund Completed</h2>
+              <p className="text-gray-600">This crowdfund has reached its target and is no longer accepting donations.</p>
+            </div>
           )}
 
           {fund.status === "completed" && fund.userId.walletAddress === publicKey?.toBase58() && !fund.tokenAddress && (
             <div className="bg-white p-6 rounded-lg shadow-md mt-6">
               <h2 className="text-xl font-semibold mb-4">Launch Token</h2>
               <p className="text-gray-600 mb-4">
-                The fund is complete but the token has not been created. An image is required to launch on Pump.fun.
+                The fund is complete but the token has not been created.
               </p>
               <button
                 onClick={handleManualLaunch}

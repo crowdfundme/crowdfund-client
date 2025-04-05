@@ -14,7 +14,7 @@ import { useUser } from "../context/UserContext";
 
 interface FundListProps {
   funds: Fund[];
-  status: "active" | "completed" | "mixed"; // Add "mixed"
+  status: "active" | "completed" | "mixed";
   onDonationSuccess?: (updatedFund?: Fund) => void;
 }
 
@@ -77,7 +77,24 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
 
     const amount = donationAmounts[fundId];
     if (!amount || amount < minDonation || amount > maxDonation) {
-      const errorMsg = `Donation amount must be between ${minDonation} and ${maxDonation} SOL`;
+      const errorMsg = `Donation amount must be between ${minDonation.toFixed(2)} and ${maxDonation.toFixed(2)} SOL`;
+      setError(errorMsg);
+      toast.error(errorMsg);
+      return;
+    }
+
+    // Find the fund to check its initial status
+    const fund = funds.find((f) => f._id === fundId);
+    if (!fund) {
+      const errorMsg = "Fund not found.";
+      setError(errorMsg);
+      toast.error(errorMsg);
+      return;
+    }
+
+    // Pre-check status from local data (optional, since backend enforces it)
+    if (fund.status === "completed") {
+      const errorMsg = "This crowdfund is already completed. No further donations are accepted.";
       setError(errorMsg);
       toast.error(errorMsg);
       return;
@@ -91,7 +108,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
       logInfo(`Starting donation for fund ${fundId}: ${amount} SOL`);
 
       const connection = await getConnection();
-      const solBalance = await connection.getBalance(publicKey) / LAMPORTS_PER_SOL;
+      const solBalance = (await connection.getBalance(publicKey)) / LAMPORTS_PER_SOL;
       if (solBalance < amount + 0.01) {
         throw new Error(`Insufficient SOL. Need at least ${(amount + 0.01).toFixed(2)} SOL, have ${solBalance.toFixed(2)} SOL`);
       }
@@ -121,7 +138,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
         setTimeout(() => reject(new Error("Transaction confirmation timed out after 60 seconds")), 60000)
       );
       await Promise.race([confirmationPromise, timeoutPromise]);
-      logInfo(`Transaction confirmed: ${signature}`);
+      logInfo(`Donation transaction confirmed: ${signature}`);
 
       const response = await axios.post(`/api/backend/funds/${fundId}/donate`, {
         amount,
@@ -133,11 +150,14 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
       logInfo(`Backend response for donation to fund ${fundId}:`, updatedFund);
 
       if (isMounted) {
-        let toastMessage = `Successfully donated ${amount.toFixed(2)} SOL! Transaction: ${signature.slice(0, 8)}...`;
+        let toastMessage = `Successfully donated ${amount.toFixed(2)} SOL! Tx: ${signature.slice(0, 8)}...`;
         if (updatedFund.status === "completed") {
           toastMessage += ` Fund completed! Token: ${updatedFund.tokenAddress?.slice(0, 4)}...${updatedFund.tokenAddress?.slice(-4)}`;
         }
         toast.success(toastMessage);
+
+        // Reset donation amount to minimum after success
+        setDonationAmounts((prev) => ({ ...prev, [fundId]: minDonation }));
 
         if (onDonationSuccess) {
           onDonationSuccess(updatedFund);
@@ -146,19 +166,25 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
     } catch (error) {
       console.error(`Error calling /api/backend/funds/${fundId}/donate:`, error);
       let errorMsg = "Donation failed.";
-      
       if (axios.isAxiosError(error) && error.response) {
         console.error("Server response:", error.response.data);
         logInfo("Server error response:", error.response.data);
-        errorMsg = error.response.data.error || error.response.data.message || "Unknown error";
-      }
-      logInfo("Donation error:", error);      
-      if (error instanceof Error) {
+        errorMsg = error.response.data.error || errorMsg; // Use backend error message
+      } else if (error instanceof Error) {
         errorMsg = error.message.includes("User rejected") ? "Transaction cancelled in wallet" : error.message;
       }
+      logInfo("Donation error:", error);
+
       if (isMounted) {
         setError(errorMsg);
         toast.error(errorMsg);
+        // If the error indicates the fund is completed, trigger onDonationSuccess with current fund data
+        if (errorMsg.includes("Crowdfund is already completed")) {
+          const updatedFund = { ...fund, status: "completed" } as Fund;
+          if (onDonationSuccess) {
+            onDonationSuccess(updatedFund);
+          }
+        }
       }
     } finally {
       if (isMounted) {
@@ -180,7 +206,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
         {funds.map((fund) => {
           const progress = Math.min((fund.currentDonatedSol / fund.targetSolAmount) * 100, 100);
           const imageUrl = imageUrls[fund._id];
-          const fundStatus = status === "mixed" ? fund.status : status; // Use fund.status when status is "mixed"
+          const fundStatus = status === "mixed" ? fund.status : status;
 
           return (
             <div key={fund._id} className="bg-white p-4 rounded-lg shadow-md">
