@@ -74,7 +74,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
       toast.error(errorMsg);
       return;
     }
-  
+
     const amount = donationAmounts[fundId];
     if (!amount || amount < minDonation || amount > maxDonation) {
       const errorMsg = `Donation amount must be between ${minDonation.toFixed(2)} and ${maxDonation.toFixed(2)} SOL`;
@@ -82,29 +82,29 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
       toast.error(errorMsg);
       return;
     }
-  
+
     let isMounted = true;
-  
+
     try {
       setError(null);
       setDonating(fundId, true);
       logInfo(`Starting donation for fund ${fundId}: ${amount} SOL`);
-  
-      // Step 1: Pre-validate donation
+
+      // Step 1: Pre-validate donation (HTTP request)
       const preDonateResponse = await axios.post(`/api/backend/funds/${fundId}/pre-donate`, {
         amount,
         donorWallet: publicKey.toBase58(),
       });
       const { fundWalletAddress: validatedFundWallet } = preDonateResponse.data;
       logInfo(`Pre-donation validated for fund ${fundId}`);
-  
+
       const connection = await getConnection();
       const solBalance = (await connection.getBalance(publicKey)) / LAMPORTS_PER_SOL;
       if (solBalance < amount + 0.01) {
         throw new Error(`Insufficient SOL. Need at least ${(amount + 0.01).toFixed(2)} SOL, have ${solBalance.toFixed(2)} SOL`);
       }
-  
-      // Step 2: Send SOL transaction
+
+      // Step 2: Send SOL transaction using signAndSendTransaction
       const transaction = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
@@ -115,40 +115,40 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
       const { blockhash } = await connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = publicKey;
-  
+
       const provider = window.solana;
       if (!provider || !provider.signAndSendTransaction) {
         throw new Error("Wallet not detected or incompatible. Please use a Solana-compatible wallet (e.g., Phantom).");
       }
-  
+
       toast.info("Please confirm the transaction in your wallet...");
       const { signature } = await provider.signAndSendTransaction(transaction);
       toast.info("Transaction sent, awaiting confirmation...");
-  
+
       const confirmationPromise = connection.confirmTransaction(signature, "confirmed");
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error("Transaction confirmation timed out after 60 seconds")), 60000)
       );
       await Promise.race([confirmationPromise, timeoutPromise]);
       logInfo(`Donation transaction confirmed: ${signature}`);
-  
+
       // Step 3: Notify backend of successful transaction
       const response = await axios.post(`/api/backend/funds/${fundId}/donate`, {
         amount,
         donorWallet: publicKey.toBase58(),
         txSignature: signature,
       });
-  
+
       const updatedFund: Fund = response.data;
       logInfo(`Backend response for donation to fund ${fundId}:`, updatedFund);
-  
+
       if (isMounted) {
         let toastMessage = `Successfully donated ${amount.toFixed(2)} SOL! Tx: ${signature.slice(0, 8)}...`;
         if (updatedFund.status === "completed") {
           toastMessage += ` Fund completed! Token: ${updatedFund.tokenAddress?.slice(0, 4)}...${updatedFund.tokenAddress?.slice(-4)}`;
         }
         toast.success(toastMessage);
-  
+
         setDonationAmounts((prev) => ({ ...prev, [fundId]: minDonation }));
         if (onDonationSuccess) onDonationSuccess(updatedFund);
       }
@@ -163,7 +163,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
         errorMsg = error.message.includes("User rejected") ? "Transaction cancelled in wallet" : error.message;
       }
       logInfo("Donation error:", error);
-  
+
       if (isMounted) {
         setError(errorMsg);
         toast.error(errorMsg);
@@ -180,7 +180,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
         logInfo(`Donation process completed for fund ${fundId}`);
       }
     }
-  
+
     return () => {
       isMounted = false;
     };

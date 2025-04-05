@@ -291,7 +291,7 @@ export default function FundDetail() {
       setDonating(fundId, true);
       logInfo(`Starting donation for fund ${fundId}: ${donationAmount} SOL`);
 
-      // Step 1: Pre-validate donation
+      // Step 1: Pre-validate donation (HTTP request)
       const preDonateResponse = await axios.post(`${baseUrl}/funds/${fundId}/pre-donate`, {
         amount: donationAmount,
         donorWallet: publicKey.toBase58(),
@@ -305,7 +305,7 @@ export default function FundDetail() {
         throw new Error(`Insufficient SOL. Need at least ${(donationAmount + 0.01).toFixed(2)} SOL, have ${solBalance.toFixed(2)} SOL`);
       }
 
-      // Step 2: Send SOL transaction
+      // Step 2: Send SOL transaction using signAndSendTransaction
       const transaction = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
@@ -354,8 +354,8 @@ export default function FundDetail() {
         setDonationAmount(minDonation);
       }
     } catch (error) {
-      let errorMsg = "Donation failed.";
       console.error(`Error during donation to fund ${fundId}:`, error);
+      let errorMsg = "Donation failed.";
       if (axios.isAxiosError(error) && error.response) {
         console.error("Server response:", error.response.data);
         logInfo("Server error response:", error.response.data);
