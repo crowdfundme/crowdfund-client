@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { Transaction, SystemProgram, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import { Transaction, SystemProgram, LAMPORTS_PER_SOL, PublicKey, ComputeBudgetProgram } from "@solana/web3.js";
 import { getConnection } from "../lib/solana";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -91,6 +91,11 @@ export default function CreateFund() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const MAX_IMAGE_SIZE = 25 * 1024 * 1024; // 25MB limit
+      if (file.size > MAX_IMAGE_SIZE) {
+        toast.error("Image file too large. Maximum size is 25MB.");
+        return;
+      }
       setImageFile(file);
       const previewUrl = URL.createObjectURL(file);
       setImagePreview(previewUrl);
@@ -103,14 +108,14 @@ export default function CreateFund() {
       toast.error("Wallet not connected. Please connect your wallet.");
       return;
     }
-  
+
     if (!imageFile) {
       toast.error("Image is required. Please upload an image for your fund.");
       return;
     }
-  
+
     setCreating(true);
-  
+
     // Validate target wallet
     console.log("[handleSubmit] Validating targetWallet:", form.targetWallet);
     if (!form.targetWallet || form.targetWallet.trim() === "") {
@@ -126,15 +131,16 @@ export default function CreateFund() {
       toast.error("Invalid target wallet address. Please enter a valid Solana public key.");
       return;
     }
-  
+
     try {
       const connection = await getConnection();
       const solBalance = (await connection.getBalance(publicKey)) / LAMPORTS_PER_SOL;
-      if (solBalance < creationFee + 0.005) {
-        throw new Error(`Insufficient SOL. Please add at least ${creationFee + 0.005} SOL to your wallet.`);
+      const gasReserve = 0.005; // Minimum gas reserve
+      if (solBalance < creationFee + gasReserve) {
+        throw new Error(`Insufficient SOL. Please add at least ${(creationFee + gasReserve).toFixed(3)} SOL to your wallet.`);
       }
-  
-      // Step 1: Send SOL to WEBSITE_WALLET
+
+      // Step 1: Send SOL to WEBSITE_WALLET with priority fee
       console.log("[handleSubmit] WEBSITE_WALLET:", process.env.NEXT_PUBLIC_WEBSITE_WALLET);
       const websiteWalletKey = process.env.NEXT_PUBLIC_WEBSITE_WALLET;
       if (!websiteWalletKey) {
@@ -149,35 +155,58 @@ export default function CreateFund() {
       } catch (err) {
         throw new Error(`Invalid website wallet address in environment: ${err}`);
       }
-  
-      const transaction = new Transaction().add(
+
+      const transaction = new Transaction();
+
+      // Add priority fee to ensure quick confirmation
+      const priorityFeeMicroLamports = 10000; // 0.00001 SOL
+      transaction.add(
+        ComputeBudgetProgram.setComputeUnitPrice({
+          microLamports: priorityFeeMicroLamports,
+        })
+      );
+
+      transaction.add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
           toPubkey: websiteWallet,
-          lamports: creationFee * LAMPORTS_PER_SOL,
+          lamports: Math.round(creationFee * LAMPORTS_PER_SOL),
         })
       );
-      const { blockhash } = await connection.getLatestBlockhash();
+
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = publicKey;
-  
+
       const provider = window.solana;
-      if (!provider || !provider.isPhantom) {
-        throw new Error("Phantom wallet not detected.");
+      if (!provider || !provider.signAndSendTransaction) {
+        throw new Error("Solana wallet (e.g., Phantom) not detected.");
       }
-  
+
+      toast.info("Please confirm the transaction in your wallet...");
       const { signature } = await provider.signAndSendTransaction(transaction);
-      await connection.confirmTransaction(signature, "confirmed");
-  
+      toast.info("Transaction sent, awaiting confirmation...");
+
+      // Confirm transaction with timeout
+      const confirmationPromise = connection.confirmTransaction(
+        { signature, blockhash, lastValidBlockHeight },
+        "confirmed"
+      );
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Transaction confirmation timed out after 60 seconds")), 60000)
+      );
+      await Promise.race([confirmationPromise, timeoutPromise]);
+      console.log("[handleSubmit] Transaction confirmed:", signature);
+
       // Step 2: Create the fund with the transaction signature
       const fundResponse = await axios.post("/api/backend/funds", {
         ...form,
         userWallet: publicKey.toBase58(),
         txSignature: signature,
       });
-  
+
       const fundId = fundResponse.data._id;
-  
+
       // Step 3: Upload the image
       const formData = new FormData();
       formData.append("image", imageFile);
@@ -187,18 +216,18 @@ export default function CreateFund() {
         });
       } catch (imageError) {
         if (axios.isAxiosError(imageError) && imageError.response?.status === 400) {
-          toast.error("Invalid image file. Please upload a valid image (e.g., JPG, PNG). Fund created, but image upload failed.");
+          toast.error("Invalid image file. Fund created, but image upload failed.", { duration: 5000 });
           // Continue despite image failure
         } else {
           throw imageError; // Rethrow other errors (e.g., 500)
         }
       }
-  
+
       toast.success(`Fund created successfully! ${fundResponse.data.message}`, {
         duration: 3000,
         onAutoClose: () => router.push("/explore"),
       });
-  
+
       // Reset form
       setForm({
         name: "",
@@ -217,9 +246,12 @@ export default function CreateFund() {
     } catch (error) {
       console.error("Error in fund creation:", error);
       let errorMsg = "Failed to create fund.";
+      let refundSignature: string | undefined;
+
       if (axios.isAxiosError(error) && error.response) {
         console.error("Server response:", error.response.data);
-        errorMsg = error.response.data.error || errorMsg; // Extract string error message
+        errorMsg = error.response.data.error || errorMsg;
+        refundSignature = error.response.data.refundSignature; // Extract refund info if available
       } else if (error instanceof Error) {
         errorMsg = error.message;
         const isRejected =
@@ -231,7 +263,17 @@ export default function CreateFund() {
           return;
         }
       }
-      toast.error(errorMsg, { duration: 5000 });
+
+      // Construct full error message with refund info
+      const fullMessage = refundSignature
+        ? `${errorMsg} ${
+            refundSignature.includes("failed")
+              ? "Refund attempted but failed. Please contact support."
+              : `Refunded: ${refundSignature}`
+          }`
+        : errorMsg;
+
+      toast.error(fullMessage, { duration: 5000 });
     } finally {
       setCreating(false);
     }

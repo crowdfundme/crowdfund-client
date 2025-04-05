@@ -291,16 +291,25 @@ export default function FundDetail() {
       setDonating(fundId, true);
       logInfo(`Starting donation for fund ${fundId}: ${donationAmount} SOL`);
 
+      // Step 1: Pre-validate donation
+      const preDonateResponse = await axios.post(`${baseUrl}/funds/${fundId}/pre-donate`, {
+        amount: donationAmount,
+        donorWallet: publicKey.toBase58(),
+      });
+      const { fundWalletAddress: validatedFundWallet } = preDonateResponse.data;
+      logInfo(`Pre-donation validated for fund ${fundId}`);
+
       const connection = await getConnection();
       const solBalance = (await connection.getBalance(publicKey)) / LAMPORTS_PER_SOL;
       if (solBalance < donationAmount + 0.01) {
         throw new Error(`Insufficient SOL. Need at least ${(donationAmount + 0.01).toFixed(2)} SOL, have ${solBalance.toFixed(2)} SOL`);
       }
 
+      // Step 2: Send SOL transaction
       const transaction = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
-          toPubkey: new PublicKey(fund.fundWalletAddress),
+          toPubkey: new PublicKey(validatedFundWallet),
           lamports: Math.round(donationAmount * LAMPORTS_PER_SOL),
         })
       );
@@ -324,6 +333,7 @@ export default function FundDetail() {
       await Promise.race([confirmationPromise, timeoutPromise]);
       logInfo(`Donation transaction confirmed: ${signature}`);
 
+      // Step 3: Notify backend of successful transaction
       const response = await axios.post(`${baseUrl}/funds/${fundId}/donate`, {
         amount: donationAmount,
         donorWallet: publicKey.toBase58(),
@@ -345,7 +355,7 @@ export default function FundDetail() {
       }
     } catch (error) {
       let errorMsg = "Donation failed.";
-      console.error(`Error calling ${baseUrl}/funds/${fundId}/donate:`, error);
+      console.error(`Error during donation to fund ${fundId}:`, error);
       if (axios.isAxiosError(error) && error.response) {
         console.error("Server response:", error.response.data);
         logInfo("Server error response:", error.response.data);
@@ -360,7 +370,6 @@ export default function FundDetail() {
         toast.error(errorMsg);
         if (errorMsg.includes("Crowdfund is already completed")) {
           setIsCompleted(true);
-          // Update fund data to reflect completion
           setFund((prev) =>
             prev ? { ...prev, status: "completed", currentDonatedSol: prev.targetSolAmount } : prev
           );
