@@ -470,24 +470,29 @@ export default function FundDetail() {
     : 0;
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
+    <div className="flex flex-col items-center p-4 sm:p-6 min-h-screen">
       <Toaster position="top-right" richColors />
       {loading && <p className="text-gray-600 mb-4">Loading fund details...</p>}
       {error && <p className="text-red-500 mb-4">{error}</p>}
 
       {fund ? (
-        <>
-          <button
-            onClick={handleBack}
-            className="mb-4 border border-black bg-white text-black p-2 rounded hover:bg-black hover:text-white hover:border-white transition-colors duration-200"
+        <div className="w-full max-w-2xl">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-0">Fund Details</h1>
+            <button
+              onClick={handleBack}
+              className="border border-black bg-white text-black px-3 py-1 sm:px-4 sm:py-2 rounded hover:bg-black hover:text-white hover:border-white transition-colors duration-200 text-sm sm:text-base w-full sm:w-auto"
+            >
+              Back to Explore
+            </button>
+          </div>
+          <div
+            className="bg-white p-4 rounded-lg shadow-md flex flex-col w-full h-[800px] sm:h-[900px]"
+            style={{ border: "0.5px solid black" }}
           >
-            Back to Explore
-          </button>
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">{fund.name}</h1>
-
-          <div className="border border-gray-300 rounded-lg p-4 mb-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">{fund.name}</h2>
             <div
-              className={`w-full h-48 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden ${
+              className={`w-full h-40 sm:h-48 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden ${
                 fund.userId.walletAddress === publicKey?.toBase58() && !imageUrl
                   ? "cursor-pointer hover:bg-gray-300 border-2 border-dashed border-gray-300"
                   : "border-none"
@@ -515,7 +520,7 @@ export default function FundDetail() {
                   className="w-full h-full object-cover rounded-lg"
                 />
               ) : (
-                <span className="text-gray-500">
+                <span className="text-gray-500 text-sm">
                   {fund.userId.walletAddress === publicKey?.toBase58()
                     ? "Click to upload an image"
                     : "No Image Available"}
@@ -529,102 +534,99 @@ export default function FundDetail() {
               onChange={handleImageChange}
               className="hidden"
             />
-            {fund.userId.walletAddress === publicKey?.toBase58() && (
-              <div className="flex space-x-2 mb-4 mt-2">
-                {!imageUrl && imagePreview && (
-                  <button
-                    onClick={handleImageUpload}
-                    className="flex-1 border border-black bg-white text-black p-2 rounded flex items-center justify-center transition-colors duration-200 hover:bg-black hover:text-white hover:border-white disabled:bg-gray-400 disabled:text-gray-700 disabled:border-gray-400 disabled:cursor-not-allowed"
-                    disabled={uploadingImage}
+            {fund.userId.walletAddress === publicKey?.toBase58() && !imageUrl && imagePreview && (
+              <button
+                onClick={handleImageUpload}
+                className="w-full border border-black bg-white text-black p-2 rounded flex items-center justify-center transition-colors duration-200 hover:bg-black hover:text-white hover:border-white disabled:bg-gray-400 disabled:text-gray-700 disabled:border-gray-400 disabled:cursor-not-allowed text-sm mt-4 mb-4"
+                disabled={uploadingImage}
+              >
+                {uploadingImage ? (
+                  <svg
+                    className="animate-spin h-4 w-4 mr-2 text-black"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
                   >
-                    {uploadingImage ? (
-                      <svg
-                        className="animate-spin h-5 w-5 mr-2 text-black"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                    ) : null}
-                    {uploadingImage ? "Uploading..." : "Upload Image"}
-                  </button>
-                )}
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : null}
+                {uploadingImage ? "Uploading..." : "Upload Image"}
+              </button>
+            )}
+            <div className="flex-1 flex flex-col space-y-2 text-sm text-gray-700 overflow-y-auto">
+              <p>
+                <span className="font-semibold">Ticker:</span> {fund.tokenSymbol}
+              </p>
+              <div>
+                <span className="font-semibold">Description:</span>
+                <div className="whitespace-pre-wrap">{fund.tokenDescription}</div>
               </div>
-            )}
-            <p className="text-sm text-gray-700">
-              <span className="font-semibold">Ticker:</span> {fund.tokenSymbol}
-            </p>
-            <p className="text-sm text-gray-700">
-              <span className="font-semibold">Description:</span> {fund.tokenDescription}
-            </p>
-            {fund.tokenTwitter && (
-              <p className="text-sm text-gray-700">
+              <p>
                 <span className="font-semibold">Twitter:</span>{" "}
-                <a href={fund.tokenTwitter} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
-                  Link
-                </a>
+                {fund.tokenTwitter ? (
+                  <a href={fund.tokenTwitter} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+                    Link
+                  </a>
+                ) : (
+                  ""
+                )}
               </p>
-            )}
-            {fund.tokenTelegram && (
-              <p className="text-sm text-gray-700">
+              <p>
                 <span className="font-semibold">Telegram:</span>{" "}
-                <a href={fund.tokenTelegram} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
-                  Link
-                </a>
+                {fund.tokenTelegram ? (
+                  <a href={fund.tokenTelegram} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+                    Link
+                  </a>
+                ) : (
+                  ""
+                )}
               </p>
-            )}
-            {fund.tokenWebsite && (
-              <p className="text-sm text-gray-700">
+              <p>
                 <span className="font-semibold">Website:</span>{" "}
-                <a href={fund.tokenWebsite} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
-                  Link
-                </a>
+                {fund.tokenWebsite ? (
+                  <a href={fund.tokenWebsite} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+                    Link
+                  </a>
+                ) : (
+                  ""
+                )}
               </p>
-            )}
-            <p className="text-sm text-gray-700">
-              <span className="font-semibold">Supply Raised:</span>{" "}
-              {(fund.currentDonatedSol / fund.targetSolAmount * fund.targetPercentage).toFixed(2)}% (Target:{" "}
-              {fund.targetPercentage}%)
-            </p>
-            <p className="text-sm text-gray-700">
-              <span className="font-semibold">Supply Wallet:</span>{" "}
-              {fund.fundWalletAddress.slice(0, 4)}...{fund.fundWalletAddress.slice(-4)}
-            </p>
-            <p className="text-sm text-gray-700">
-              <span className="font-semibold">Crowd Wallet:</span>{" "}
-              {fund.targetWallet.slice(0, 4)}...{fund.targetWallet.slice(-4)}
-            </p>
-            <p className="text-sm text-gray-700">
-              <span className="font-semibold">Donations:</span> {progress.toFixed(2)}% (
-              {fund.currentDonatedSol.toFixed(2)}/{fund.targetSolAmount.toFixed(2)} SOL)
-            </p>
-            {fund.status === "completed" && fund.tokenAddress && (
-              <p className="text-sm text-gray-700">
-                <span className="font-semibold">Token Address:</span>{" "}
-                {fund.tokenAddress.slice(0, 4)}...{fund.tokenAddress.slice(-4)}
+              <p>
+                <span className="font-semibold">Supply Raised:</span>{" "}
+                {(fund.currentDonatedSol / fund.targetSolAmount * fund.targetPercentage).toFixed(2)}% (Target:{" "}
+                {fund.targetPercentage}%)
               </p>
-            )}
-            {fund.status === "completed" && fund.launchError && (
-              <p className="text-sm text-red-500">
-                <span className="font-semibold">Launch Error:</span> {fund.launchError}
+              <p>
+                <span className="font-semibold">Supply Wallet:</span>{" "}
+                {fund.fundWalletAddress.slice(0, 4)}...{fund.fundWalletAddress.slice(-4)}
               </p>
-            )}
-            <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-              <div
-                className="bg-black h-2.5 rounded-full"
-                style={{ width: `${progress}%` }}
-              ></div>
-            </div>
-          </div>
-
-          {!isCompleted ? (
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h2 className="text-xl font-semibold mb-4">Donate to {fund.name}</h2>
-              {publicKey ? (
-                <>
-                  <div className="mb-4">
+              <p>
+                <span className="font-semibold">Crowd Wallet:</span>{" "}
+                {fund.targetWallet.slice(0, 4)}...{fund.targetWallet.slice(-4)}
+              </p>
+              <p>
+                <span className="font-semibold">Donations:</span> {progress.toFixed(2)}% (
+                {fund.currentDonatedSol.toFixed(2)}/{fund.targetSolAmount.toFixed(2)} SOL)
+              </p>
+              {fund.status === "completed" && fund.tokenAddress && (
+                <p>
+                  <span className="font-semibold">Token Address:</span>{" "}
+                  {fund.tokenAddress.slice(0, 4)}...{fund.tokenAddress.slice(-4)}
+                </p>
+              )}
+              {fund.status === "completed" && fund.launchError && (
+                <p className="text-sm text-red-500">
+                  <span className="font-semibold">Launch Error:</span> {fund.launchError}
+                </p>
+              )}
+              <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                <div className="bg-black h-2 rounded-full" style={{ width: `${progress}%` }}></div>
+              </div>
+              {!isCompleted ? (
+                publicKey ? (
+                  <div className="flex flex-col space-y-2 mt-4">
+                    <h2 className="text-lg font-semibold">Donate to {fund.name}</h2>
                     <label htmlFor="donation-slider" className="block text-sm font-medium text-gray-700">
                       Donation Amount ({minDonation.toFixed(2)} - {maxDonation.toFixed(2)} SOL)
                     </label>
@@ -639,8 +641,6 @@ export default function FundDetail() {
                       className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                       disabled={donating[fund._id]}
                     />
-                  </div>
-                  <div className="mb-4">
                     <label htmlFor="donation-input" className="block text-sm font-medium text-gray-700">
                       Enter Amount (SOL)
                     </label>
@@ -655,107 +655,62 @@ export default function FundDetail() {
                         const value = parseFloat(e.target.value);
                         if (!isNaN(value)) setDonationAmount(Math.min(Math.max(value, minDonation), maxDonation));
                       }}
-                      className="block w-full p-2 border rounded"
+                      className="block w-full p-2 border rounded text-sm"
                       disabled={donating[fund._id]}
                     />
+                    <button
+                      onClick={handleDonation}
+                      className="w-full border border-black bg-white text-black p-2 rounded flex items-center justify-center transition-colors duration-200 hover:bg-black hover:text-white hover:border-white disabled:bg-gray-400 disabled:text-gray-700 disabled:border-gray-400 disabled:cursor-not-allowed text-sm"
+                      disabled={!publicKey || donating[fund._id]}
+                    >
+                      {donating[fund._id] ? (
+                        <svg
+                          className="animate-spin h-4 w-4 mr-2 text-black"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                          ></path>
+                        </svg>
+                      ) : null}
+                      {donating[fund._id] ? "Donating..." : `Donate ${donationAmount.toFixed(2)} SOL`}
+                    </button>
                   </div>
-                  <button
-                    onClick={handleDonation}
-                    className="w-full border border-black bg-white text-black p-2 rounded flex items-center justify-center transition-colors duration-200 hover:bg-black hover:text-white hover:border-white disabled:bg-gray-400 disabled:text-gray-700 disabled:border-gray-400 disabled:cursor-not-allowed"
-                    disabled={!publicKey || donating[fund._id]}
-                  >
-                    {donating[fund._id] ? (
-                      <svg
-                        className="animate-spin h-5 w-5 mr-2 text-black"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                        ></path>
-                      </svg>
-                    ) : null}
-                    {donating[fund._id] ? "Donating..." : `Donate ${donationAmount.toFixed(2)} SOL`}
-                  </button>
-                </>
+                ) : (
+                  <p className="text-gray-600 text-sm mt-4">Please connect your wallet to donate.</p>
+                )
               ) : (
-                <p className="text-gray-600">Please connect your wallet to donate.</p>
+                <div className="mt-4">
+                  <h2 className="text-lg font-semibold text-green-600">Crowdfund Completed</h2>
+                  <p className="text-gray-600 text-sm">This crowdfund has reached its target and is no longer accepting donations.</p>
+                </div>
               )}
-            </div>
-          ) : (
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h2 className="text-xl font-semibold mb-4 text-green-600">Crowdfund Completed</h2>
-              <p className="text-gray-600">This crowdfund has reached its target and is no longer accepting donations.</p>
-            </div>
-          )}
-
-          {fund.status === "completed" && fund.userId.walletAddress === publicKey?.toBase58() && !fund.tokenAddress && (
-            <div className="bg-white p-6 rounded-lg shadow-md mt-6">
-              <h2 className="text-xl font-semibold mb-4">Launch Token</h2>
-              <p className="text-gray-600 mb-4">
-                The fund is complete but the token has not been created.
-              </p>
-              <button
-                onClick={handleManualLaunch}
-                className="w-full border border-black bg-white text-black p-2 rounded flex items-center justify-center transition-colors duration-200 hover:bg-black hover:text-white hover:border-white disabled:bg-gray-400 disabled:text-gray-700 disabled:border-gray-400 disabled:cursor-not-allowed"
-                disabled={launching || !imageUrl}
-              >
-                {launching ? (
-                  <svg
-                    className="animate-spin h-5 w-5 mr-2 text-black"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    ></path>
-                  </svg>
-                ) : null}
-                {launching ? "Launching..." : "Launch Token"}
-              </button>
-            </div>
-          )}
-
-          {fund.status === "completed" && fund.userId.walletAddress === publicKey?.toBase58() && fund.tokenAddress && (
-            <div className="bg-white p-6 rounded-lg shadow-md mt-6">
-              <h2 className="text-xl font-semibold mb-4">Manual Token Transfer</h2>
-              {isTransferred ? (
-                <p className="text-green-500">Tokens have been transferred to the target wallet.</p>
-              ) : (
-                <>
-                  <p className="text-gray-600 mb-4">
-                    The fund is complete. Click below to manually transfer the created token to the target wallet.
+              {fund.status === "completed" && fund.userId.walletAddress === publicKey?.toBase58() && !fund.tokenAddress && (
+                <div className="mt-4">
+                  <h2 className="text-lg font-semibold">Launch Token</h2>
+                  <p className="text-gray-600 text-sm mb-2">
+                    The fund is complete but the token has not been created.
                   </p>
                   <button
-                    onClick={handleManualTransfer}
-                    className="w-full border border-black bg-white text-black p-2 rounded flex items-center justify-center transition-colors duration-200 hover:bg-black hover:text-white hover:border-white disabled:bg-gray-400 disabled:text-gray-700 disabled:border-gray-400 disabled:cursor-not-allowed"
-                    disabled={transferring}
+                    onClick={handleManualLaunch}
+                    className="w-full border border-black bg-white text-black p-2 rounded flex items-center justify-center transition-colors duration-200 hover:bg-black hover:text-white hover:border-white disabled:bg-gray-400 disabled:text-gray-700 disabled:border-gray-400 disabled:cursor-not-allowed text-sm"
+                    disabled={launching || !imageUrl}
                   >
-                    {transferring ? (
+                    {launching ? (
                       <svg
-                        className="animate-spin h-5 w-5 mr-2 text-black"
+                        className="animate-spin h-4 w-4 mr-2 text-black"
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
                         viewBox="0 0 24 24"
@@ -775,13 +730,56 @@ export default function FundDetail() {
                         ></path>
                       </svg>
                     ) : null}
-                    {transferring ? "Transferring..." : "Transfer Tokens"}
+                    {launching ? "Launching..." : "Launch Token"}
                   </button>
-                </>
+                </div>
+              )}
+              {fund.status === "completed" && fund.userId.walletAddress === publicKey?.toBase58() && fund.tokenAddress && (
+                <div className="mt-4">
+                  <h2 className="text-lg font-semibold">Manual Token Transfer</h2>
+                  {isTransferred ? (
+                    <p className="text-green-500 text-sm">Tokens have been transferred to the target wallet.</p>
+                  ) : (
+                    <>
+                      <p className="text-gray-600 text-sm mb-2">
+                        The fund is complete. Click below to manually transfer the created token to the target wallet.
+                      </p>
+                      <button
+                        onClick={handleManualTransfer}
+                        className="w-full border border-black bg-white text-black p-2 rounded flex items-center justify-center transition-colors duration-200 hover:bg-black hover:text-white hover:border-white disabled:bg-gray-400 disabled:text-gray-700 disabled:border-gray-400 disabled:cursor-not-allowed text-sm"
+                        disabled={transferring}
+                      >
+                        {transferring ? (
+                          <svg
+                            className="animate-spin h-4 w-4 mr-2 text-black"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                            ></path>
+                          </svg>
+                        ) : null}
+                        {transferring ? "Transferring..." : "Transfer Tokens"}
+                      </button>
+                    </>
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </>
+          </div>
+        </div>
       ) : (
         <div className="flex justify-center items-center">
           <svg
@@ -790,19 +788,8 @@ export default function FundDetail() {
             fill="none"
             viewBox="0 0 24 24"
           >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            ></circle>
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-            ></path>
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
           </svg>
         </div>
       )}

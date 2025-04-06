@@ -131,13 +131,13 @@ export default function Header() {
           <Link
             href="/create-token"
             onClick={handleCreateClick}
-            className={`hover:text-gray-600 font-medium ${isActive("/create-token") ? "text-gray-600 underline" : "text-black"}`}
+            className="hover:text-gray-600 hover:underline font-medium text-black"
           >
             Create
           </Link>
           <Link
             href="/explore"
-            className={`hover:text-gray-600 font-medium ${isActive("/explore") ? "text-gray-600 underline" : "text-black"}`}
+            className="hover:text-gray-600 hover:underline font-medium text-black"
           >
             Crowd
           </Link>
@@ -190,7 +190,7 @@ export default function Header() {
                   <Link
                     href="/create-token"
                     onClick={handleCreateClick}
-                    className={`block px-4 py-2 hover:bg-gray-100 ${isActive("/create-token") ? "text-gray-600 underline" : "text-black"}`}
+                    className="block px-4 py-2 hover:bg-gray-100 hover:underline text-black"
                     onClickCapture={() => setIsMobileMenuOpen(false)}
                   >
                     Create
@@ -199,7 +199,7 @@ export default function Header() {
                 <li>
                   <Link
                     href="/explore"
-                    className={`block px-4 py-2 hover:bg-gray-100 ${isActive("/explore") ? "text-gray-600 underline" : "text-black"}`}
+                    className="block px-4 py-2 hover:bg-gray-100 hover:underline text-black"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Crowd
