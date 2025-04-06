@@ -102,6 +102,24 @@ export default function CreateFund() {
     }
   };
 
+  const handleTickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Regex: Only alphanumeric (A-Z, 0-9, a-z), no spaces or special characters
+    const validTickerRegex = /^[a-zA-Z0-9]*$/;
+    
+    if (value.length > 12) {
+      toast.error("Ticker must be 12 characters or fewer.");
+      return;
+    }
+    
+    if (!validTickerRegex.test(value)) {
+      toast.error("Ticker must contain only letters and numbers (no spaces or special characters).");
+      return;
+    }
+
+    setForm({ ...form, tokenSymbol: value.toUpperCase() }); // Convert to uppercase for consistency
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!publicKey) {
@@ -111,6 +129,11 @@ export default function CreateFund() {
 
     if (!imageFile) {
       toast.error("Image is required. Please upload an image for your fund.");
+      return;
+    }
+
+    if (!form.tokenSymbol || form.tokenSymbol.length > 12 || !/^[a-zA-Z0-9]*$/.test(form.tokenSymbol)) {
+      toast.error("Ticker must be 1-12 alphanumeric characters with no spaces or special characters.");
       return;
     }
 
@@ -346,12 +369,14 @@ export default function CreateFund() {
           <label className="block text-sm font-medium text-gray-700 mb-1">Ticker</label>
           <input
             type="text"
-            placeholder="Enter Ticker"
+            placeholder="Enter Ticker (e.g., SOL)"
             value={form.tokenSymbol}
-            onChange={(e) => setForm({ ...form, tokenSymbol: e.target.value })}
-            className="block w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            onChange={handleTickerChange}
+            maxLength={12}
+            className="block w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
             required
           />
+          <p className="text-gray-500 text-sm mt-1">Max 12 characters, letters and numbers only (e.g., SOL, BTC).</p>
         </div>
 
         <div className="mb-4">
@@ -372,12 +397,12 @@ export default function CreateFund() {
             onChange={(e) => setForm({ ...form, targetPercentage: Number(e.target.value) })}
             className="block w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
-            <option value={1}>1% (0.3 SOL)</option>
-            <option value={5}>5% (1.480938417 SOL)</option>
-            <option value={10}>10% (3.114080165 SOL)</option>
-            <option value={25}>25% (9.204131229 SOL)</option>
-            <option value={50}>50% (26.439790577 SOL)</option>
-            <option value={75}>75% (70.356037153 SOL)</option>
+            <option value={1}>1%</option>
+            <option value={5}>5%</option>
+            <option value={10}>10%</option>
+            <option value={25}>25%</option>
+            <option value={50}>50%</option>
+            <option value={75}>75%</option>
           </select>
         </div>
 
@@ -426,13 +451,6 @@ export default function CreateFund() {
           />
         </div>
 
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Creation Fee</label>
-          <p className="text-gray-500">
-            {loadingFee ? "Loading..." : `${creationFee.toFixed(2)} SOL`}
-          </p>
-        </div>
-
         <button
           type="submit"
           disabled={!publicKey || creating || loadingFee || !imageFile}
@@ -456,9 +474,9 @@ export default function CreateFund() {
               Creating Fund...
             </>
           ) : loadingFee ? (
-            "Loading Fee..."
+            "Loading..."
           ) : (
-            `Create Fund (${creationFee.toFixed(2)} SOL)`
+            "Submit"
           )}
         </button>
       </form>

@@ -28,7 +28,6 @@ export default function ExplorePage() {
       console.log("Fetching latest completed funds...");
       const completedResponse = await axios.get("/api/backend/funds?status=completed&page=1&limit=5");
       console.log("Completed funds response:", completedResponse.data);
-      // Sort by completedAt descending to show latest completed first
       const sortedCompleted = completedResponse.data.funds.sort((a: Fund, b: Fund) =>
         new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime()
       );
@@ -119,26 +118,48 @@ export default function ExplorePage() {
   return (
     <div className="p-6">
       <Toaster position="top-right" richColors />
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Crowdfunds</h1>
+      <div className="mb-6 text-center">
+        <h1 className="text-5xl font-bold text-gray-900 mb-4">Crowdfunds</h1>
         <input
           type="text"
           placeholder="Search by ID, name, or token"
-          className="border border-gray-300 rounded-lg p-2 w-48"
+          className="border border-gray-300 rounded-lg p-2 w-full max-w-md mx-auto"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
 
-      {error && <p className="text-red-500 mb-4">{error}</p>}
+      {error && <p className="text-red-500 mb-4 text-center">{error}</p>}
 
       {searchTerm && (
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Search Results</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4 text-center">Search Results</h2>
           {searchLoading ? (
-            <p className="text-gray-600">Searching...</p>
+            <div className="flex items-center justify-center space-x-2 text-gray-600">
+              <svg
+                className="animate-spin h-5 w-5"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+              <span>Searching...</span>
+            </div>
           ) : searchResults.length === 0 ? (
-            <p className="text-gray-600">No funds found matching "{searchTerm}".</p>
+            <p className="text-gray-600 text-center">No funds found matching "{searchTerm}".</p>
           ) : (
             <FundList funds={searchResults} status="mixed" onDonationSuccess={handleDonationSuccess} />
           )}
@@ -146,37 +167,85 @@ export default function ExplorePage() {
       )}
 
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Latest Active Crowdfunds</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4 text-center">Active Crowdfunds</h2>
         {loading ? (
-          <p className="text-gray-600">Loading active crowdfunds...</p>
+          <div className="flex items-center justify-center space-x-2 text-gray-600">
+            <svg
+              className="animate-spin h-5 w-5"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              />
+            </svg>
+            <span>Loading active crowdfunds...</span>
+          </div>
         ) : activeFunds.length === 0 ? (
-          <p className="text-gray-600 mb-6">No active crowdfunds available.</p>
+          <p className="text-gray-600 mb-6 text-center">No active crowdfunds available.</p>
         ) : (
           <>
             <FundList funds={activeFunds} status="active" onDonationSuccess={handleDonationSuccess} />
-            <Link href="/active">
-              <button className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                More Active Crowdfunds
-              </button>
-            </Link>
+            <div className="flex justify-start mt-4">
+              <Link href="/active">
+                <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                  More Active Crowdfunds
+                </button>
+              </Link>
+            </div>
           </>
         )}
       </div>
 
       <div className="mt-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Latest Completed Crowdfunds</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4 text-center">Completed Crowdfunds</h2>
         {loading ? (
-          <p className="text-gray-600">Loading completed crowdfunds...</p>
+          <div className="flex items-center justify-center space-x-2 text-gray-600">
+            <svg
+              className="animate-spin h-5 w-5"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              />
+            </svg>
+            <span>Loading completed crowdfunds...</span>
+          </div>
         ) : completedFunds.length === 0 ? (
-          <p className="text-gray-600">No completed crowdfunds yet.</p>
+          <p className="text-gray-600 text-center">No completed crowdfunds yet.</p>
         ) : (
           <>
             <FundList funds={completedFunds} status="completed" onDonationSuccess={handleDonationSuccess} />
-            <Link href="/completed">
-              <button className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                More Completed Crowdfunds
-              </button>
-            </Link>
+            <div className="flex justify-start mt-4">
+              <Link href="/completed">
+                <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                  More Completed Crowdfunds
+                </button>
+              </Link>
+            </div>
           </>
         )}
       </div>

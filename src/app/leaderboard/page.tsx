@@ -29,12 +29,10 @@ export default function LeaderboardPage() {
         setLoading(true);
         setError(null);
 
-        // Fetch total leaderboard
         const totalResponse = await axios.get("/api/backend/users/leaderboard/total");
         console.log("Total leaderboard response:", totalResponse.data);
         setTotalLeaderboard(Array.isArray(totalResponse.data) ? totalResponse.data : []);
 
-        // Fetch active funds
         const fundsResponse = await axios.get("/api/backend/funds?status=active");
         console.log("Funds response:", fundsResponse.data);
         const fundsData = Array.isArray(fundsResponse.data.funds) ? fundsResponse.data.funds : [];
@@ -86,84 +84,126 @@ export default function LeaderboardPage() {
     fetchFundLeaderboard();
   }, [selectedFundId]);
 
+  const getRankBadge = (index: number) => {
+    if (index === 0) return <span className="text-yellow-500 font-bold mr-2">🥇</span>; // Gold
+    if (index === 1) return <span className="text-gray-400 font-bold mr-2">🥈</span>; // Silver
+    if (index === 2) return <span className="text-amber-600 font-bold mr-2">🥉</span>; // Bronze
+    return <span className="text-gray-500 mr-2">#{index + 1}</span>;
+  };
+
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Leaderboard</h1>
+    <div className="p-6 max-w-4xl mx-auto">
+      <h1 className="text-4xl font-extrabold text-gray-900 mb-8 text-center">Leaderboard</h1>
 
       {loading ? (
-        <p className="text-gray-600">Loading leaderboards...</p>
+        <div className="flex items-center justify-center space-x-2 text-gray-600">
+          <svg
+            className="animate-spin h-5 w-5"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          <span>Loading leaderboards...</span>
+        </div>
       ) : error ? (
-        <p className="text-red-500 mb-4">{error}</p>
+        <p className="text-red-500 mb-4 text-center">{error}</p>
       ) : (
         <>
           {/* Total SOL Donated Leaderboard */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Top 100 Donors (Total SOL)</h2>
+          <div className="mb-12">
+            <h2 className="text-2xl font-semibold text-gray-800 mb-6">Top 100 Donors (Total SOL)</h2>
             {totalLeaderboard.length === 0 ? (
-              <p className="text-gray-600">No donations yet. Be the first to donate!</p>
+              <p className="text-gray-600 text-center">No donations yet. Be the first to donate!</p>
             ) : (
-              <div className="max-h-[600px] overflow-y-auto">
-                <div className="space-y-4">
-                  {totalLeaderboard.map((user, index) => (
-                    <div key={user.walletAddress} className="border border-gray-300 rounded-lg p-4">
-                      <div className="flex justify-between items-center">
-                        <h3 className="text-lg font-semibold">
-                          #{index + 1} {user.walletAddress.slice(0, 4)}...{user.walletAddress.slice(-4)}
-                        </h3>
-                        <p className="text-gray-700">
-                          Total Donated:{" "}
-                          <span className="font-semibold">{user.totalDonatedSol.toFixed(2)} SOL</span>
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              <div className="bg-white shadow-lg rounded-lg overflow-hidden max-h-[500px] overflow-y-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wallet</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Donated (SOL)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {totalLeaderboard.map((user, index) => (
+                      <tr key={user.walletAddress} className="hover:bg-gray-50 transition-colors duration-200">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {getRankBadge(index)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                          {user.walletAddress.slice(0, 4)}...{user.walletAddress.slice(-4)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-right">
+                          {user.totalDonatedSol.toFixed(2)} SOL
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
 
           {/* Per-Fund Leaderboard */}
           <div>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Top 100 Donors Per Fund</h2>
+            <h2 className="text-2xl font-semibold text-gray-800 mb-6">Top 100 Donors Per Fund</h2>
             {funds.length === 0 ? (
-              <p className="text-gray-600">No active funds available.</p>
+              <p className="text-gray-600 text-center">No active funds available.</p>
             ) : (
               <>
-                <select
-                  value={selectedFundId || ""}
-                  onChange={(e) => setSelectedFundId(e.target.value)}
-                  className="block w-full max-w-xs p-2 border rounded mb-4"
-                >
-                  <option value="" disabled>
-                    Select a fund
-                  </option>
-                  {funds.map((fund) => (
-                    <option key={fund._id} value={fund._id}>
-                      {fund.name} ({fund.tokenSymbol})
+                <div className="mb-6">
+                  <label htmlFor="fund-select" className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Fund
+                  </label>
+                  <select
+                    id="fund-select"
+                    value={selectedFundId || ""}
+                    onChange={(e) => setSelectedFundId(e.target.value)}
+                    className="block w-full max-w-xs p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="" disabled>
+                      Choose a fund
                     </option>
-                  ))}
-                </select>
+                    {funds.map((fund) => (
+                      <option key={fund._id} value={fund._id}>
+                        {fund.name} ({fund.tokenSymbol})
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 {!selectedFundId ? (
-                  <p className="text-gray-600">Please select a fund to view its leaderboard.</p>
+                  <p className="text-gray-600 text-center">Please select a fund to view its leaderboard.</p>
                 ) : fundLeaderboard.length === 0 ? (
-                  <p className="text-gray-600">No donations for {fundName} yet.</p>
+                  <p className="text-gray-600 text-center">No donations for {fundName} yet.</p>
                 ) : (
-                  <div className="max-h-[600px] overflow-y-auto">
-                    <div className="space-y-4">
-                      {fundLeaderboard.map((user, index) => (
-                        <div key={user.walletAddress} className="border border-gray-300 rounded-lg p-4">
-                          <div className="flex justify-between items-center">
-                            <h3 className="text-lg font-semibold">
-                              #{index + 1} {user.walletAddress.slice(0, 4)}...{user.walletAddress.slice(-4)}
-                            </h3>
-                            <p className="text-gray-700">
-                              Donated to {fundName}:{" "}
-                              <span className="font-semibold">{user.totalForFund.toFixed(2)} SOL</span>
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                  <div className="bg-white shadow-lg rounded-lg overflow-hidden max-h-[500px] overflow-y-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50 sticky top-0 z-10">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wallet</th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Donated (SOL)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {fundLeaderboard.map((user, index) => (
+                          <tr key={user.walletAddress} className="hover:bg-gray-50 transition-colors duration-200">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {getRankBadge(index)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                              {user.walletAddress.slice(0, 4)}...{user.walletAddress.slice(-4)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-right">
+                              {user.totalForFund.toFixed(2)} SOL
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </>

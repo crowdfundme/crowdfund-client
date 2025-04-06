@@ -291,7 +291,6 @@ export default function FundDetail() {
       setDonating(fundId, true);
       logInfo(`Starting donation for fund ${fundId}: ${donationAmount} SOL`);
 
-      // Step 1: Pre-validate donation (HTTP request)
       const preDonateResponse = await axios.post(`${baseUrl}/funds/${fundId}/pre-donate`, {
         amount: donationAmount,
         donorWallet: publicKey.toBase58(),
@@ -305,7 +304,6 @@ export default function FundDetail() {
         throw new Error(`Insufficient SOL. Need at least ${(donationAmount + 0.01).toFixed(2)} SOL, have ${solBalance.toFixed(2)} SOL`);
       }
 
-      // Step 2: Send SOL transaction using signAndSendTransaction
       const transaction = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
@@ -333,7 +331,6 @@ export default function FundDetail() {
       await Promise.race([confirmationPromise, timeoutPromise]);
       logInfo(`Donation transaction confirmed: ${signature}`);
 
-      // Step 3: Notify backend of successful transaction
       const response = await axios.post(`${baseUrl}/funds/${fundId}/donate`, {
         amount: donationAmount,
         donorWallet: publicKey.toBase58(),
@@ -466,7 +463,6 @@ export default function FundDetail() {
 
   const handleBack = () => router.push("/explore");
 
-  // Calculate progress, forcing 100% if completed
   const progress = fund
     ? isCompleted
       ? 100
@@ -551,26 +547,6 @@ export default function FundDetail() {
                       </svg>
                     ) : null}
                     {uploadingImage ? "Uploading..." : "Upload Image"}
-                  </button>
-                )}
-                {imageUrl && (
-                  <button
-                    onClick={handleImageDelete}
-                    className="flex-1 bg-red-500 hover:bg-red-600 text-white p-2 rounded flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    disabled={uploadingImage}
-                  >
-                    {uploadingImage ? (
-                      <svg
-                        className="animate-spin h-5 w-5 mr-2 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                    ) : null}
-                    {uploadingImage ? "Deleting..." : "Delete Image"}
                   </button>
                 )}
               </div>
@@ -805,7 +781,28 @@ export default function FundDetail() {
           )}
         </>
       ) : (
-        <p className="text-gray-600">No fund data available yet.</p>
+        <div className="flex justify-center items-center">
+          <svg
+            className="animate-spin h-8 w-8 text-gray-600"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            ></circle>
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+            ></path>
+          </svg>
+        </div>
       )}
     </div>
   );

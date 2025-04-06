@@ -74,45 +74,79 @@ export default function UserProfileEdit() {
   };
 
   if (!publicKey || publicKey.toBase58() !== walletAddress) return null;
-  if (loading) return <div className="p-6">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center space-x-2 text-gray-600">
+        <svg
+          className="animate-spin h-5 w-5"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+        <span>Loading...</span>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold mb-4">Edit Profile</h1>
-      <form onSubmit={handleSubmit} className="bg-white p-4 rounded-lg shadow-md">
-        <div className="mb-4">
-          <label className="block text-gray-700">Name</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full p-2 border rounded"
-            placeholder="Enter your name"
-          />
+    <div className="p-6 max-w-3xl mx-auto">
+      <h1 className="text-4xl font-extrabold text-gray-900 mb-8 text-center">Edit Profile</h1>
+      <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md">
+        <div className="space-y-6">
+          <div>
+            <label htmlFor="name" className="block text-lg font-medium text-gray-700 mb-2">
+              Name
+            </label>
+            <input
+              id="name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+              placeholder="Enter your name"
+            />
+          </div>
+          <div>
+            <label htmlFor="email" className="block text-lg font-medium text-gray-700 mb-2">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+              placeholder="Enter your email"
+            />
+          </div>
+          <div className="flex gap-4">
+            <button
+              type="submit"
+              className="bg-blue-500 text-white py-2 px-6 rounded-md hover:bg-blue-600 transition-colors duration-200"
+            >
+              Save Changes
+            </button>
+            <button
+              type="button"
+              onClick={handleBack}
+              className="bg-gray-500 text-white py-2 px-6 rounded-md hover:bg-gray-600 transition-colors duration-200"
+            >
+              Back
+            </button>
+          </div>
         </div>
-        <div className="mb-4">
-          <label className="block text-gray-700">Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-2 border rounded"
-            placeholder="Enter your email"
-          />
-        </div>
-        <div className="flex gap-4">
-          <button type="submit" className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">
-            Save Changes
-          </button>
-          <button
-            type="button"
-            onClick={handleBack}
-            className="bg-gray-500 text-white p-2 rounded hover:bg-gray-600"
+        {message && (
+          <p
+            className={`mt-4 text-center text-lg font-medium ${
+              message.includes("success") ? "text-green-500" : "text-red-500"
+            }`}
           >
-            Back
-          </button>
-        </div>
-        {message && <p className="mt-2 text-green-500">{message}</p>}
+            {message}
+          </p>
+        )}
       </form>
     </div>
   );

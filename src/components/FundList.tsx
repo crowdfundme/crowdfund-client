@@ -90,7 +90,6 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
       setDonating(fundId, true);
       logInfo(`Starting donation for fund ${fundId}: ${amount} SOL`);
 
-      // Step 1: Pre-validate donation (HTTP request)
       const preDonateResponse = await axios.post(`/api/backend/funds/${fundId}/pre-donate`, {
         amount,
         donorWallet: publicKey.toBase58(),
@@ -104,7 +103,6 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
         throw new Error(`Insufficient SOL. Need at least ${(amount + 0.01).toFixed(2)} SOL, have ${solBalance.toFixed(2)} SOL`);
       }
 
-      // Step 2: Send SOL transaction using signAndSendTransaction
       const transaction = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
@@ -132,7 +130,6 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
       await Promise.race([confirmationPromise, timeoutPromise]);
       logInfo(`Donation transaction confirmed: ${signature}`);
 
-      // Step 3: Notify backend of successful transaction
       const response = await axios.post(`/api/backend/funds/${fundId}/donate`, {
         amount,
         donorWallet: publicKey.toBase58(),
@@ -189,7 +186,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
   return (
     <div>
       <Toaster position="top-right" richColors />
-      {error && <p className="text-red-500 mb-4">{error}</p>}
+      {error && <p className="text-red-500 mb-4 text-center">{error}</p>}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {funds.map((fund) => {
           const progress = Math.min((fund.currentDonatedSol / fund.targetSolAmount) * 100, 100);
@@ -220,6 +217,14 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
               <p className="text-sm text-gray-700 mb-2">
                 <span className="font-semibold">Progress:</span> {progress.toFixed(2)}% (
                 {fund.currentDonatedSol.toFixed(2)}/{fund.targetSolAmount.toFixed(2)} SOL)
+              </p>
+              <p className="text-sm text-gray-700 mb-2">
+                <span className="font-semibold">Fund Wallet:</span>{" "}
+                {fund.fundWalletAddress.slice(0, 4)}...{fund.fundWalletAddress.slice(-4)}
+              </p>
+              <p className="text-sm text-gray-700 mb-2">
+                <span className="font-semibold">Target Wallet:</span>{" "}
+                {fund.targetWallet.slice(0, 4)}...{fund.targetWallet.slice(-4)}
               </p>
               <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
                 <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>

@@ -2,7 +2,6 @@
 
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import { useEffect } from "react";
 
 export default function Home() {
   const { connected, publicKey, disconnect, connecting } = useWallet();
@@ -24,14 +23,14 @@ export default function Home() {
       <p className="text-gray-600 mb-4">Connect your Solana wallet to get started.</p>
       <button
         onClick={handleWalletClick}
-        className="solana-wallet-button"
+        className={`underline hover:text-gray-300 font-medium ${connecting ? "text-gray-400" : "text-gray-900"}`}
         disabled={connecting}
       >
         {connecting
           ? "Connecting..."
           : connected && publicKey
           ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}`
-          : "Connect Wallet"}
+          : "Connect"}
       </button>
     </div>
   );
