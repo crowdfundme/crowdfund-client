@@ -7,7 +7,7 @@ import { Transaction, SystemProgram, LAMPORTS_PER_SOL, PublicKey, ComputeBudgetP
 import { getConnection } from "../lib/solana";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { toast } from "sonner"; // Only import toast
+import { toast } from "sonner";
 
 export default function CreateFund() {
   const { publicKey } = useWallet();
@@ -424,12 +424,12 @@ export default function CreateFund() {
         <button
           type="submit"
           disabled={!publicKey || creating || loadingFee || !imageFile}
-          className="w-full bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-md font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center transition-colors duration-200"
+          className="w-full px-4 py-2 border border-black bg-white text-black rounded hover:bg-black hover:text-white hover:border-white transition-colors duration-200 disabled:bg-gray-400 disabled:text-gray-700 disabled:border-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
         >
           {creating ? (
             <>
               <svg
-                className="animate-spin h-5 w-5 mr-2 text-white"
+                className="animate-spin h-5 w-5 mr-2 text-black disabled:text-gray-700"
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
                 viewBox="0 0 24 24"
