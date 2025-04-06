@@ -99,7 +99,7 @@ export default function Header() {
   const isActive = (href: string) => pathname === href;
 
   return (
-    <header className="bg-white text-black p-4 flex justify-between items-center shadow-md relative">
+    <header className="bg-white text-black p-4 flex justify-between items-center relative">
       <div className="flex items-center">
         <a href="/">
           <div className="w-9 h-9 lg:w-12 lg:h-12 max-w-[150px]">
@@ -128,30 +128,6 @@ export default function Header() {
             className={`hover:text-gray-600 font-medium ${isActive("/explore") ? "text-gray-600" : "text-black"}`}
           >
             Crowd
-          </Link>
-          <Link
-            href="/leaderboard"
-            className={`hover:text-gray-600 font-medium ${isActive("/leaderboard") ? "text-gray-600" : "text-black"}`}
-          >
-            Leaderboard
-          </Link>
-          <Link
-            href={profileUrl}
-            className={`hover:text-gray-600 font-medium ${
-              publicKey
-                ? isActive(profileUrl)
-                  ? "text-gray-600"
-                  : "text-black"
-                : "text-gray-400 cursor-not-allowed"
-            }`}
-            onClick={(e) => {
-              if (!publicKey) {
-                e.preventDefault();
-                alert("Please connect your wallet to view your profile.");
-              }
-            }}
-          >
-            My Profile
           </Link>
         </nav>
         <div className="relative">
@@ -214,32 +190,6 @@ export default function Header() {
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Crowd
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/leaderboard"
-                    className="block px-4 py-2 hover:bg-gray-100 text-black"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    Leaderboard
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href={profileUrl}
-                    className={`block px-4 py-2 hover:bg-gray-100 rounded-b-lg ${
-                      publicKey ? "text-black" : "text-gray-400 cursor-not-allowed"
-                    }`}
-                    onClick={(e) => {
-                      if (!publicKey) {
-                        e.preventDefault();
-                        alert("Please connect your wallet to view your profile.");
-                      }
-                      setIsMobileMenuOpen(false);
-                    }}
-                  >
-                    My Profile
                   </Link>
                 </li>
               </ul>
