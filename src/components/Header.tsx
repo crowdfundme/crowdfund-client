@@ -9,7 +9,7 @@ import axios from "axios";
 import Link from "next/link";
 import { FaBars } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
-import { toast, Toaster } from "sonner"; // Added toast import
+import { toast } from "sonner"; // Only import toast
 
 export default function Header() {
   const { connected, publicKey, disconnect, connecting, wallet } = useWallet();
@@ -40,7 +40,6 @@ export default function Header() {
 
       if (connected && publicKey) {
         registerUser(publicKey.toBase58());
-        // Show toast when wallet connects
         toast.success("Wallet Connected", {
           description: `Connected as ${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}`,
         });
@@ -89,7 +88,6 @@ export default function Header() {
     await disconnect();
     setIsWalletMenuOpen(false);
     setIsMobileMenuOpen(false);
-    // Show toast when wallet disconnects
     toast.info("Wallet Disconnected");
     if (pathname !== "/" && pathname !== "/explore") {
       console.log("Header: Disconnecting, navigating to /explore from", pathname);
@@ -105,121 +103,117 @@ export default function Header() {
 
   const handleCreateClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (!connected) {
-      e.preventDefault(); // Prevent navigation if not connected
+      e.preventDefault();
       console.log("Header: Create clicked, not connected - opening wallet modal");
       setVisible(true);
     } else {
       console.log("Header: Create clicked, connected - navigating to /create-token");
-      // Allow default Link behavior (navigation to /create-token)
     }
   };
 
   const isActive = (href: string) => pathname === href;
 
   return (
-    <>
-      <header className="bg-white text-black p-4 flex justify-between items-center relative">
-        <div className="flex items-center">
-          <a href="/">
-            <div className="w-9 h-9 lg:w-12 lg:h-12 max-w-[150px]">
-              <img src="/logo.png" className="w-full h-full object-contain" alt="Logo" />
-            </div>
+    <header className="bg-white text-black p-4 flex justify-between items-center relative">
+      <div className="flex items-center">
+        <a href="/">
+          <div className="w-9 h-9 lg:w-12 lg:h-12 max-w-[150px]">
+            <img src="/logo.png" className="w-full h-full object-contain" alt="Logo" />
+          </div>
+        </a>
+      </div>
+      <div className="flex items-center gap-6">
+        <nav className="hidden md:flex gap-6 items-center">
+          <a
+            href="https://twitter.com/youraccount"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-gray-600 text-black"
+          >
+            <FaXTwitter size={20} />
           </a>
+          <Link
+            href="/create-token"
+            onClick={handleCreateClick}
+            className="hover:text-gray-600 hover:underline font-medium text-black"
+          >
+            Create
+          </Link>
+          <Link
+            href="/explore"
+            className="hover:text-gray-600 hover:underline font-medium text-black"
+          >
+            Crowd
+          </Link>
+        </nav>
+        <div className="relative">
+          <button
+            onClick={handleWalletClick}
+            className={`underline hover:text-gray-600 font-medium ${connecting ? "text-gray-400" : "text-black"}`}
+            disabled={connecting}
+          >
+            {connecting
+              ? "Connecting..."
+              : connected && publicKey
+                ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}`
+                : "Connect Wallet"}
+          </button>
+          {connected && publicKey && isWalletMenuOpen && (
+            <div className="absolute top-full right-0 mt-2 w-48 bg-white text-black border border-gray-300 rounded-lg shadow-xl z-10">
+              <button
+                onClick={handleDisconnect}
+                className="w-full text-left px-4 py-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Disconnect
+              </button>
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-6">
-          <nav className="hidden md:flex gap-6 items-center">
-            <a
-              href="https://twitter.com/youraccount" // Replace with your actual Twitter URL
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-gray-600 text-black"
-            >
-              <FaXTwitter size={20} />
-            </a>
-            <Link
-              href="/create-token"
-              onClick={handleCreateClick}
-              className="hover:text-gray-600 hover:underline font-medium text-black"
-            >
-              Create
-            </Link>
-            <Link
-              href="/explore"
-              className="hover:text-gray-600 hover:underline font-medium text-black"
-            >
-              Crowd
-            </Link>
-          </nav>
-          <div className="relative">
-            <button
-              onClick={handleWalletClick}
-              className={`underline hover:text-gray-600 font-medium ${connecting ? "text-gray-400" : "text-black"}`}
-              disabled={connecting}
-            >
-              {connecting
-                ? "Connecting..."
-                : connected && publicKey
-                  ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}`
-                  : "Connect Wallet"}
-            </button>
-            {connected && publicKey && isWalletMenuOpen && (
-              <div className="absolute top-full right-0 mt-2 w-48 bg-white text-black border border-gray-300 rounded-lg shadow-xl z-10">
-                <button
-                  onClick={handleDisconnect}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  Disconnect
-                </button>
-              </div>
-            )}
-          </div>
-          <div className="relative">
-            <button
-              onClick={toggleMobileMenu}
-              className="md:hidden text-black hover:text-gray-600 focus:outline-none"
-            >
-              <FaBars size={24} />
-            </button>
-            {isMobileMenuOpen && (
-              <div className="md:hidden absolute top-full right-0 mt-4 w-48 bg-white text-black border border-gray-300 rounded-lg shadow-xl z-20">
-                <ul className="flex flex-col">
-                  <li>
-                    <a
-                      href="https://twitter.com/youraccount" // Replace with your actual Twitter URL
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block px-4 py-2 hover:bg-gray-100 rounded-t-lg text-black"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      Twitter
-                    </a>
-                  </li>
-                  <li>
-                    <Link
-                      href="/create-token"
-                      onClick={handleCreateClick}
-                      className="block px-4 py-2 hover:bg-gray-100 hover:underline text-black"
-                      onClickCapture={() => setIsMobileMenuOpen(false)}
-                    >
-                      Create
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/explore"
-                      className="block px-4 py-2 hover:bg-gray-100 hover:underline text-black"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      Crowd
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-            )}
-          </div>
+        <div className="relative">
+          <button
+            onClick={toggleMobileMenu}
+            className="md:hidden text-black hover:text-gray-600 focus:outline-none"
+          >
+            <FaBars size={24} />
+          </button>
+          {isMobileMenuOpen && (
+            <div className="md:hidden absolute top-full right-0 mt-4 w-48 bg-white text-black border border-gray-300 rounded-lg shadow-xl z-20">
+              <ul className="flex flex-col">
+                <li>
+                  <a
+                    href="https://twitter.com/youraccount"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block px-4 py-2 hover:bg-gray-100 rounded-t-lg text-black"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Twitter
+                  </a>
+                </li>
+                <li>
+                  <Link
+                    href="/create-token"
+                    onClick={handleCreateClick}
+                    className="block px-4 py-2 hover:bg-gray-100 hover:underline text-black"
+                    onClickCapture={() => setIsMobileMenuOpen(false)}
+                  >
+                    Create
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/explore"
+                    className="block px-4 py-2 hover:bg-gray-100 hover:underline text-black"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Crowd
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          )}
         </div>
-      </header>
-      <Toaster position="top-right" richColors /> {/* Added Toaster component */}
-    </>
+      </div>
+    </header>
   );
 }

@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import FundList from "@/components/FundList";
 import { Fund } from "@/types";
-import { toast, Toaster } from "sonner";
 import Link from "next/link";
+import { toast } from "sonner";
 
 export default function ExplorePage() {
   const [activeFunds, setActiveFunds] = useState<Fund[]>([]);
@@ -151,8 +151,7 @@ export default function ExplorePage() {
   }, []);
 
   return (
-    <div className="p-6">
-      <Toaster position="top-right" richColors />
+    <div className="p-6">      
       <div className="mb-6 text-center">
         <h1 className="text-5xl font-bold text-gray-900 mb-4" style={{ fontWeight: 300 }}>
           Crowdfunds

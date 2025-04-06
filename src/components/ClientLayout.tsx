@@ -2,6 +2,7 @@
 
 import Header from "./Header";
 import Footer from "./Footer";
+import { Toaster } from "sonner";
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -11,6 +12,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         {children}
       </main>
       <Footer />
+      <Toaster position="top-right" richColors /> {/* Centralized Toaster */}
     </div>
   );
 }

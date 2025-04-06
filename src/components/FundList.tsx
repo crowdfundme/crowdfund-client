@@ -8,7 +8,7 @@ import Image from "next/image";
 import { Fund } from "../types";
 import axios from "axios";
 import Link from "next/link";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import { logInfo } from "../utils/logger";
 import { useUser } from "../context/UserContext";
 
@@ -184,8 +184,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
   };
 
   return (
-    <div className="p-4">
-      <Toaster position="top-right" richColors />
+    <div className="p-4">      
       {error && <p className="text-red-500 mb-4 text-center text-sm">{error}</p>}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4">
         {funds.map((fund) => {

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import FundList from "@/components/FundList";
 import { Fund } from "@/types";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import Link from "next/link";
 
 export default function CompletedFundsPage() {
@@ -106,8 +106,7 @@ export default function CompletedFundsPage() {
   const endIndex = Math.min(state.page * fundsPerPage, state.totalFunds);
 
   return (
-    <div className="p-6">
-      <Toaster position="top-right" richColors />
+    <div className="p-6">      
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900" style={{ fontWeight: 300 }}>
           Completed Crowdfunds

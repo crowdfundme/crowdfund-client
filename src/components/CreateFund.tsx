@@ -7,7 +7,7 @@ import { Transaction, SystemProgram, LAMPORTS_PER_SOL, PublicKey, ComputeBudgetP
 import { getConnection } from "../lib/solana";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner"; // Only import toast
 
 export default function CreateFund() {
   const { publicKey } = useWallet();
@@ -35,7 +35,7 @@ export default function CreateFund() {
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [creationFee, setCreationFee] = useState<number>(0.1); // Default to 0.1 SOL
+  const [creationFee, setCreationFee] = useState<number>(0.1);
   const [loadingFee, setLoadingFee] = useState<boolean>(true);
   const [creating, setCreating] = useState<boolean>(false);
   const isMounted = useRef<boolean>(true);
@@ -91,7 +91,7 @@ export default function CreateFund() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const MAX_IMAGE_SIZE = 25 * 1024 * 1024; // 25MB limit
+      const MAX_IMAGE_SIZE = 25 * 1024 * 1024;
       if (file.size > MAX_IMAGE_SIZE) {
         toast.error("Image file too large. Maximum size is 25MB.");
         return;
@@ -104,20 +104,16 @@ export default function CreateFund() {
 
   const handleTickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    // Regex: Only alphanumeric (A-Z, 0-9, a-z), no spaces or special characters
     const validTickerRegex = /^[a-zA-Z0-9]*$/;
-    
     if (value.length > 12) {
       toast.error("Ticker must be 12 characters or fewer.");
       return;
     }
-    
     if (!validTickerRegex.test(value)) {
       toast.error("Ticker must contain only letters and numbers (no spaces or special characters).");
       return;
     }
-
-    setForm({ ...form, tokenSymbol: value.toUpperCase() }); // Convert to uppercase for consistency
+    setForm({ ...form, tokenSymbol: value.toUpperCase() });
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -139,32 +135,14 @@ export default function CreateFund() {
 
     setCreating(true);
 
-    // Validate target wallet
-    console.log("[handleSubmit] Validating targetWallet:", form.targetWallet);
-    if (!form.targetWallet || form.targetWallet.trim() === "") {
-      setCreating(false);
-      toast.error("Target wallet address is required.");
-      return;
-    }
-    try {
-      new PublicKey(form.targetWallet);
-    } catch (err) {
-      setCreating(false);
-      console.error("[handleSubmit] Invalid targetWallet:", err);
-      toast.error("Invalid target wallet address. Please enter a valid Solana public key.");
-      return;
-    }
-
     try {
       const connection = await getConnection();
       const solBalance = (await connection.getBalance(publicKey)) / LAMPORTS_PER_SOL;
-      const gasReserve = 0.005; // Minimum gas reserve
+      const gasReserve = 0.005;
       if (solBalance < creationFee + gasReserve) {
         throw new Error(`Insufficient SOL. Please add at least ${(creationFee + gasReserve).toFixed(3)} SOL to your wallet.`);
       }
 
-      // Step 1: Send SOL to WEBSITE_WALLET with priority fee
-      console.log("[handleSubmit] WEBSITE_WALLET:", process.env.NEXT_PUBLIC_WEBSITE_WALLET);
       const websiteWalletKey = process.env.NEXT_PUBLIC_WEBSITE_WALLET;
       if (!websiteWalletKey) {
         throw new Error("Website wallet address is not configured in the environment.");
@@ -180,15 +158,12 @@ export default function CreateFund() {
       }
 
       const transaction = new Transaction();
-
-      // Add priority fee to ensure quick confirmation
-      const priorityFeeMicroLamports = 10000; // 0.00001 SOL
+      const priorityFeeMicroLamports = 10000;
       transaction.add(
         ComputeBudgetProgram.setComputeUnitPrice({
           microLamports: priorityFeeMicroLamports,
         })
       );
-
       transaction.add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
@@ -210,7 +185,6 @@ export default function CreateFund() {
       const { signature } = await provider.signAndSendTransaction(transaction);
       toast.info("Transaction sent, awaiting confirmation...");
 
-      // Confirm transaction with timeout
       const confirmationPromise = connection.confirmTransaction(
         { signature, blockhash, lastValidBlockHeight },
         "confirmed"
@@ -221,7 +195,6 @@ export default function CreateFund() {
       await Promise.race([confirmationPromise, timeoutPromise]);
       console.log("[handleSubmit] Transaction confirmed:", signature);
 
-      // Step 2: Create the fund with the transaction signature
       const fundResponse = await axios.post("/api/backend/funds", {
         ...form,
         userWallet: publicKey.toBase58(),
@@ -230,7 +203,6 @@ export default function CreateFund() {
 
       const fundId = fundResponse.data._id;
 
-      // Step 3: Upload the image
       const formData = new FormData();
       formData.append("image", imageFile);
       try {
@@ -240,9 +212,8 @@ export default function CreateFund() {
       } catch (imageError) {
         if (axios.isAxiosError(imageError) && imageError.response?.status === 400) {
           toast.error("Invalid image file. Fund created, but image upload failed.", { duration: 5000 });
-          // Continue despite image failure
         } else {
-          throw imageError; // Rethrow other errors (e.g., 500)
+          throw imageError;
         }
       }
 
@@ -251,7 +222,6 @@ export default function CreateFund() {
         onAutoClose: () => router.push("/explore"),
       });
 
-      // Reset form
       setForm({
         name: "",
         tokenName: "",
@@ -274,7 +244,7 @@ export default function CreateFund() {
       if (axios.isAxiosError(error) && error.response) {
         console.error("Server response:", error.response.data);
         errorMsg = error.response.data.error || errorMsg;
-        refundSignature = error.response.data.refundSignature; // Extract refund info if available
+        refundSignature = error.response.data.refundSignature;
       } else if (error instanceof Error) {
         errorMsg = error.message;
         const isRejected =
@@ -287,7 +257,6 @@ export default function CreateFund() {
         }
       }
 
-      // Construct full error message with refund info
       const fullMessage = refundSignature
         ? `${errorMsg} ${
             refundSignature.includes("failed")
@@ -304,10 +273,9 @@ export default function CreateFund() {
 
   return (
     <div className="mb-8 w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-      <Toaster position="bottom-right" richColors />
-      <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-8 text-center"
-      style={{ fontWeight: 300 }}
-      >Start your Crowdfund</h1>
+      <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-8 text-center" style={{ fontWeight: 300 }}>
+        Start your Crowdfund
+      </h1>
       <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg w-full max-w-2xl mx-auto">
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-1">

@@ -9,7 +9,7 @@ import { useRouter, useParams } from "next/navigation";
 import { Fund } from "../../../types";
 import Image from "next/image";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import { logInfo } from "../../../utils/logger";
 import { useUser } from "../../../context/UserContext";
 
@@ -470,8 +470,7 @@ export default function FundDetail() {
     : 0;
 
   return (
-    <div className="flex flex-col items-center p-4 sm:p-6 min-h-screen">
-      <Toaster position="top-right" richColors />
+    <div className="flex flex-col items-center p-4 sm:p-6 min-h-screen">      
       {loading && <p className="text-gray-600 mb-4">Loading fund details...</p>}
       {error && <p className="text-red-500 mb-4">{error}</p>}
 

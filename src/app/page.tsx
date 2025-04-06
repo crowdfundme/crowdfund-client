@@ -3,7 +3,6 @@
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import Link from "next/link";
-import { toast, Toaster } from "sonner";
 
 export default function Home() {
   const { connected, publicKey, disconnect, connecting } = useWallet();
@@ -27,10 +26,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-12rem)] px-4 flex flex-col gap-6">
-      {/* Toaster for notifications */}
-      <Toaster position="top-right" richColors />
-      {/* Header Text - Top Center */}
+    <div className="min-h-[calc(100vh-12rem)] px-4 flex flex-col gap-6">      
       <h1
         className="text-6xl font-light text-gray-900 text-center mt-8"
         style={{ fontWeight: 300 }}
