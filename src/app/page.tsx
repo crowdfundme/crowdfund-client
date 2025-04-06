@@ -21,10 +21,7 @@ export default function Home() {
 
   const handleCreateClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (!connected) {
-      e.preventDefault(); // Prevent navigation if wallet is not connected
-      toast.error("Please connect your wallet first!", {
-        duration: 3000, // Notification lasts 3 seconds
-      });
+      e.preventDefault(); // Prevent navigation if wallet is not connected      
       setVisible(true); // Open wallet modal
     }
   };

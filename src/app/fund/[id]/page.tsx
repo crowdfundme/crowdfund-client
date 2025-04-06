@@ -478,7 +478,9 @@ export default function FundDetail() {
       {fund ? (
         <div className="w-full max-w-2xl">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-0">Fund Details</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-0"
+            style={{ fontWeight: 300 }}
+            >Fund Details</h1>
             <button
               onClick={handleBack}
               className="border border-black bg-white text-black px-3 py-1 sm:px-4 sm:py-2 rounded hover:bg-black hover:text-white hover:border-white transition-colors duration-200 text-sm sm:text-base w-full sm:w-auto"
@@ -490,7 +492,9 @@ export default function FundDetail() {
             className="bg-white p-4 rounded-lg shadow-md flex flex-col w-full h-[800px] sm:h-[900px]"
             style={{ border: "0.5px solid black" }}
           >
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">{fund.name}</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4"
+            style={{ fontWeight: 300 }}
+            >{fund.name}</h2>
             <div
               className={`w-full h-40 sm:h-48 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden ${
                 fund.userId.walletAddress === publicKey?.toBase58() && !imageUrl

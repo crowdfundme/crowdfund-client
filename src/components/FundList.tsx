@@ -184,10 +184,10 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
   };
 
   return (
-    <div>
+    <div className="p-4">
       <Toaster position="top-right" richColors />
-      {error && <p className="text-red-500 mb-4 text-center">{error}</p>}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-6">
+      {error && <p className="text-red-500 mb-4 text-center text-sm">{error}</p>}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4">
         {funds.map((fund) => {
           const progress = Math.min((fund.currentDonatedSol / fund.targetSolAmount) * 100, 100);
           const imageUrl = imageUrls[fund._id];
@@ -196,11 +196,11 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
           return (
             <div
               key={fund._id}
-              className="bg-white p-4 rounded-lg shadow-md flex flex-col"
-              style={{ border: "0.5px solid black", width: "350px", height: "500px" }}
+              className="bg-white p-4 rounded-lg shadow-md flex flex-col w-full max-w-[350px] min-h-[450px]"
+              style={{ border: "0.5px solid black" }}
             >
               <Link href={`/fund/${fund._id}`}>
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">{fund.name}</h2>
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">{fund.name}</h2>
               </Link>
               {imageUrl ? (
                 <Image
@@ -208,37 +208,40 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
                   alt={fund.name}
                   width={350}
                   height={150}
-                  className="w-full h-40 object-cover rounded-lg mb-4"
+                  className="w-full h-36 sm:h-40 object-cover rounded-lg mb-4"
                 />
               ) : (
-                <div className="w-full h-40 bg-gray-200 rounded-lg mb-4 flex items-center justify-center">
-                  <span className="text-gray-500">No Image Available</span>
+                <div className="w-full h-36 sm:h-40 bg-gray-200 rounded-lg mb-4 flex items-center justify-center">
+                  <span className="text-gray-500 text-xs sm:text-sm">No Image Available</span>
                 </div>
               )}
-              <div className="space-y-1">
-                <p className="text-sm text-gray-700">
+              <div className="space-y-1 text-xs sm:text-sm text-gray-700 flex-1">
+                <p>
                   <span className="font-semibold">Token:</span> {fund.tokenName} ({fund.tokenSymbol})
                 </p>
-                <p className="text-sm text-gray-700">
+                <p>
                   <span className="font-semibold">Progress:</span> {progress.toFixed(2)}% (
                   {fund.currentDonatedSol.toFixed(2)}/{fund.targetSolAmount.toFixed(2)} SOL)
                 </p>
-                <p className="text-sm text-gray-700">
+                <p>
                   <span className="font-semibold">Fund Wallet:</span>{" "}
                   {fund.fundWalletAddress.slice(0, 4)}...{fund.fundWalletAddress.slice(-4)}
                 </p>
-                <p className="text-sm text-gray-700">
+                <p>
                   <span className="font-semibold">Target Wallet:</span>{" "}
                   {fund.targetWallet.slice(0, 4)}...{fund.targetWallet.slice(-4)}
                 </p>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div className="bg-black h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>
+                <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                  <div className="bg-black h-2 rounded-full" style={{ width: `${progress}%` }}></div>
                 </div>
               </div>
               {fundStatus === "active" && publicKey ? (
-                <div className="mt-4 space-y-2">
+                <div className="mt-2 sm:mt-4 space-y-2">
                   <div>
-                    <label htmlFor={`donation-${fund._id}`} className="block text-sm font-medium text-gray-700">
+                    <label
+                      htmlFor={`donation-${fund._id}`}
+                      className="block text-xs sm:text-sm font-medium text-gray-700"
+                    >
                       Donation Amount ({minDonation.toFixed(2)} - {maxDonation.toFixed(2)} SOL)
                     </label>
                     <input
@@ -257,14 +260,14 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
                           }));
                         }
                       }}
-                      className="block w-full p-2 border rounded mt-1 text-sm"
+                      className="block w-full p-1 sm:p-2 border rounded mt-1 text-xs sm:text-sm"
                       disabled={donating[fund._id]}
                     />
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <button
                       onClick={() => handleDonation(fund._id, fund.fundWalletAddress)}
-                      className="flex-1 border border-black bg-white text-black p-2 rounded flex items-center justify-center transition-colors duration-200 hover:bg-black hover:text-white hover:border-white disabled:bg-gray-400 disabled:text-gray-700 disabled:border-gray-400 disabled:cursor-not-allowed text-sm"
+                      className="w-full border border-black bg-white text-black p-1 sm:p-2 rounded flex items-center justify-center transition-colors duration-200 hover:bg-black hover:text-white hover:border-white disabled:bg-gray-400 disabled:text-gray-700 disabled:border-gray-400 disabled:cursor-not-allowed text-xs sm:text-sm"
                       disabled={!publicKey || donating[fund._id]}
                     >
                       {donating[fund._id] ? (
@@ -295,32 +298,32 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
                         `Donate ${(donationAmounts[fund._id] || minDonation).toFixed(2)} SOL`
                       )}
                     </button>
-                    <Link href={`/fund/${fund._id}`} className="flex-1">
-                      <button className="w-full border border-black bg-white text-black p-2 rounded hover:bg-black hover:text-white hover:border-white transition-colors duration-200 text-sm">
+                    <Link href={`/fund/${fund._id}`} className="w-full">
+                      <button className="w-full border border-black bg-white text-black p-1 sm:p-2 rounded hover:bg-black hover:text-white hover:border-white transition-colors duration-200 text-xs sm:text-sm">
                         View
                       </button>
                     </Link>
                   </div>
                 </div>
               ) : fundStatus === "active" ? (
-                <div className="mt-4 flex gap-2">
-                  <p className="flex-1 text-gray-600 text-sm">Connect wallet to donate</p>
-                  <Link href={`/fund/${fund._id}`} className="flex-1">
-                    <button className="w-full border border-black bg-white text-black p-2 rounded hover:bg-black hover:text-white hover:border-white transition-colors duration-200 text-sm">
+                <div className="mt-2 sm:mt-4 flex flex-col sm:flex-row gap-2">
+                  <p className="w-full text-gray-600 text-xs sm:text-sm">Connect wallet to donate</p>
+                  <Link href={`/fund/${fund._id}`} className="w-full">
+                    <button className="w-full border border-black bg-white text-black p-1 sm:p-2 rounded hover:bg-black hover:text-white hover:border-white transition-colors duration-200 text-xs sm:text-sm">
                       View
                     </button>
                   </Link>
                 </div>
               ) : (
-                <div className="mt-4 flex gap-2">
-                  <p className="flex-1 text-green-500 text-sm">
+                <div className="mt-2 sm:mt-4 flex flex-col sm:flex-row gap-2">
+                  <p className="w-full text-green-500 text-xs sm:text-sm">
                     Completed! Token:{" "}
                     {fund.tokenAddress
                       ? `${fund.tokenAddress.slice(0, 4)}...${fund.tokenAddress.slice(-4)}`
                       : "Not yet launched"}
                   </p>
-                  <Link href={`/fund/${fund._id}`} className="flex-1">
-                    <button className="w-full border border-black bg-white text-black p-2 rounded hover:bg-black hover:text-white hover:border-white transition-colors duration-200 text-sm">
+                  <Link href={`/fund/${fund._id}`} className="w-full">
+                    <button className="w-full border border-black bg-white text-black p-1 sm:p-2 rounded hover:bg-black hover:text-white hover:border-white transition-colors duration-200 text-xs sm:text-sm">
                       View
                     </button>
                   </Link>
