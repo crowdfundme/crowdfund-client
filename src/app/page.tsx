@@ -2,6 +2,8 @@
 
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import Link from "next/link";
+import { toast, Toaster } from "sonner";
 
 export default function Home() {
   const { connected, publicKey, disconnect, connecting } = useWallet();
@@ -17,21 +19,35 @@ export default function Home() {
     }
   };
 
+  const handleCreateClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!connected) {
+      e.preventDefault(); // Prevent navigation if wallet is not connected
+      toast.error("Please connect your wallet first!", {
+        duration: 3000, // Notification lasts 3 seconds
+      });
+      setVisible(true); // Open wallet modal
+    }
+  };
+
   return (
-    <div className="flex items-center justify-center min-h-[calc(100vh-12rem)] px-4 flex-col gap-4">
-      <h1 className="text-3xl font-bold text-gray-900">Welcome to Crowdfund</h1>
-      <p className="text-gray-600 mb-4">Connect your Solana wallet to get started.</p>
-      <button
-        onClick={handleWalletClick}
-        className={`underline hover:text-gray-300 font-medium ${connecting ? "text-gray-400" : "text-gray-900"}`}
-        disabled={connecting}
+    <div className="min-h-[calc(100vh-12rem)] px-4 flex flex-col gap-6">
+      {/* Toaster for notifications */}
+      <Toaster position="top-right" richColors />
+      {/* Header Text - Top Center */}
+      <h1
+        className="text-6xl font-light text-gray-900 text-center mt-8"
+        style={{ fontWeight: 300 }}
       >
-        {connecting
-          ? "Connecting..."
-          : connected && publicKey
-          ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}`
-          : "Connect"}
-      </button>
+        Crowdfund.fun
+      </h1>
+      {/* Create Button - Centered below */}
+      <div className="flex justify-center">
+        <Link href="/create-token" onClick={handleCreateClick}>
+          <button className="text-gray-900 underline hover:text-gray-600 font-medium text-lg">
+            Create
+          </button>
+        </Link>
+      </div>
     </div>
   );
 }

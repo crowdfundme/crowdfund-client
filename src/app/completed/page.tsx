@@ -109,9 +109,11 @@ export default function CompletedFundsPage() {
     <div className="p-6">
       <Toaster position="top-right" richColors />
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Completed Crowdfunds</h1>
+        <h1 className="text-3xl font-bold text-gray-900" style={{ fontWeight: 300 }}>
+          Completed Crowdfunds
+        </h1>
         <Link href="/explore">
-          <button className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
+          <button className="px-4 py-2 border border-black bg-white text-black rounded hover:bg-black hover:text-white hover:border-white transition-colors duration-200">
             Back to Explore
           </button>
         </Link>

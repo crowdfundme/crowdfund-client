@@ -305,7 +305,9 @@ export default function CreateFund() {
   return (
     <div className="mb-8 w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 relative">
       <Toaster position="bottom-right" richColors />
-      <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-8 text-center">Start your Crowdfund</h1>
+      <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-8 text-center"
+      style={{ fontWeight: 300 }}
+      >Start your Crowdfund</h1>
       <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg w-full max-w-2xl mx-auto">
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-1">

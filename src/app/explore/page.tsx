@@ -119,7 +119,9 @@ export default function ExplorePage() {
     <div className="p-6">
       <Toaster position="top-right" richColors />
       <div className="mb-6 text-center">
-        <h1 className="text-5xl font-bold text-gray-900 mb-4">Crowdfunds</h1>
+        <h1 className="text-5xl font-bold text-gray-900 mb-4" style={{ fontWeight: 300 }}>
+          Crowdfunds
+        </h1>
         <input
           type="text"
           placeholder="Search by ID, name, or token"
@@ -167,7 +169,9 @@ export default function ExplorePage() {
       )}
 
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-4 text-center">Active Crowdfunds</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4 text-center" style={{ fontWeight: 300 }}>
+          Active Crowdfunds
+        </h2>
         {loading ? (
           <div className="flex items-center justify-center space-x-2 text-gray-600">
             <svg
@@ -199,7 +203,7 @@ export default function ExplorePage() {
             <FundList funds={activeFunds} status="active" onDonationSuccess={handleDonationSuccess} />
             <div className="flex justify-start mt-4">
               <Link href="/active">
-                <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                <button className="px-4 py-2 border border-black bg-white text-black rounded hover:bg-black hover:text-white hover:border-white transition-colors duration-200">
                   More Active Crowdfunds
                 </button>
               </Link>
@@ -209,7 +213,9 @@ export default function ExplorePage() {
       </div>
 
       <div className="mt-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4 text-center">Completed Crowdfunds</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4 text-center" style={{ fontWeight: 300 }}>
+          Completed Crowdfunds
+        </h2>
         {loading ? (
           <div className="flex items-center justify-center space-x-2 text-gray-600">
             <svg
@@ -241,7 +247,7 @@ export default function ExplorePage() {
             <FundList funds={completedFunds} status="completed" onDonationSuccess={handleDonationSuccess} />
             <div className="flex justify-start mt-4">
               <Link href="/completed">
-                <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                <button className="px-4 py-2 border border-black bg-white text-black rounded hover:bg-black hover:text-white hover:border-white transition-colors duration-200">
                   More Completed Crowdfunds
                 </button>
               </Link>

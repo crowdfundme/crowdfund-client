@@ -227,7 +227,7 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
                 {fund.targetWallet.slice(0, 4)}...{fund.targetWallet.slice(-4)}
               </p>
               <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
-                <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>
+                <div className="bg-black h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>
               </div>
               {fundStatus === "active" && publicKey ? (
                 <>
@@ -258,13 +258,13 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleDonation(fund._id, fund.fundWalletAddress)}
-                      className="flex-1 bg-green-500 hover:bg-green-600 text-white p-2 rounded flex items-center justify-center transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      className="flex-1 border border-black bg-white text-black p-2 rounded flex items-center justify-center transition-colors duration-200 hover:bg-black hover:text-white hover:border-white disabled:bg-gray-400 disabled:text-gray-700 disabled:border-gray-400 disabled:cursor-not-allowed"
                       disabled={!publicKey || donating[fund._id]}
                     >
                       {donating[fund._id] ? (
                         <>
                           <svg
-                            className="animate-spin h-5 w-5 mr-2 text-white"
+                            className="animate-spin h-5 w-5 mr-2 text-black"
                             xmlns="http://www.w3.org/2000/svg"
                             fill="none"
                             viewBox="0 0 24 24"
@@ -290,7 +290,9 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
                       )}
                     </button>
                     <Link href={`/fund/${fund._id}`} className="flex-1">
-                      <button className="w-full bg-blue-500 hover:bg-blue-600 text-white p-2 rounded">View</button>
+                      <button className="w-full border border-black bg-white text-black p-2 rounded hover:bg-black hover:text-white hover:border-white transition-colors duration-200">
+                        View
+                      </button>
                     </Link>
                   </div>
                 </>
@@ -298,7 +300,9 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
                 <div className="flex gap-2">
                   <p className="flex-1 text-gray-600">Connect wallet to donate</p>
                   <Link href={`/fund/${fund._id}`} className="flex-1">
-                    <button className="w-full bg-blue-500 hover:bg-blue-600 text-white p-2 rounded">View</button>
+                    <button className="w-full border border-black bg-white text-black p-2 rounded hover:bg-black hover:text-white hover:border-white transition-colors duration-200">
+                      View
+                    </button>
                   </Link>
                 </div>
               ) : (
@@ -310,7 +314,9 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
                       : "Not yet launched"}
                   </p>
                   <Link href={`/fund/${fund._id}`} className="flex-1">
-                    <button className="w-full bg-blue-500 hover:bg-blue-600 text-white p-2 rounded">View</button>
+                    <button className="w-full border border-black bg-white text-black p-2 rounded hover:bg-black hover:text-white hover:border-white transition-colors duration-200">
+                      View
+                    </button>
                   </Link>
                 </div>
               )}

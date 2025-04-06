@@ -21,7 +21,7 @@ export default function WalletWrapper({ children }: { children: React.ReactNode 
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
         <svg
-          className="animate-spin h-10 w-10 text-blue-500 mb-4"
+          className="animate-spin h-10 w-10 text-black mb-4"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"

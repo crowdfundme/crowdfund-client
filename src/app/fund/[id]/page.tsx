@@ -477,12 +477,14 @@ export default function FundDetail() {
 
       {fund ? (
         <>
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-3xl font-bold text-gray-900">{fund.name}</h1>
-            <button onClick={handleBack} className="bg-gray-500 hover:bg-gray-600 text-white p-2 rounded">
-              Back to Explore
-            </button>
-          </div>
+          <button
+            onClick={handleBack}
+            className="mb-4 border border-black bg-white text-black p-2 rounded hover:bg-black hover:text-white hover:border-white transition-colors duration-200"
+          >
+            Back to Explore
+          </button>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">{fund.name}</h1>
+
           <div className="border border-gray-300 rounded-lg p-4 mb-6">
             <div
               className={`w-full h-48 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden ${
@@ -532,12 +534,12 @@ export default function FundDetail() {
                 {!imageUrl && imagePreview && (
                   <button
                     onClick={handleImageUpload}
-                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-white p-2 rounded flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    className="flex-1 border border-black bg-white text-black p-2 rounded flex items-center justify-center transition-colors duration-200 hover:bg-black hover:text-white hover:border-white disabled:bg-gray-400 disabled:text-gray-700 disabled:border-gray-400 disabled:cursor-not-allowed"
                     disabled={uploadingImage}
                   >
                     {uploadingImage ? (
                       <svg
-                        className="animate-spin h-5 w-5 mr-2 text-white"
+                        className="animate-spin h-5 w-5 mr-2 text-black"
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
                         viewBox="0 0 24 24"
@@ -611,7 +613,7 @@ export default function FundDetail() {
             )}
             <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
               <div
-                className="bg-blue-500 h-2.5 rounded-full"
+                className="bg-black h-2.5 rounded-full"
                 style={{ width: `${progress}%` }}
               ></div>
             </div>
@@ -659,12 +661,12 @@ export default function FundDetail() {
                   </div>
                   <button
                     onClick={handleDonation}
-                    className="w-full bg-green-500 hover:bg-green-600 text-white p-2 rounded flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    className="w-full border border-black bg-white text-black p-2 rounded flex items-center justify-center transition-colors duration-200 hover:bg-black hover:text-white hover:border-white disabled:bg-gray-400 disabled:text-gray-700 disabled:border-gray-400 disabled:cursor-not-allowed"
                     disabled={!publicKey || donating[fund._id]}
                   >
                     {donating[fund._id] ? (
                       <svg
-                        className="animate-spin h-5 w-5 mr-2 text-white"
+                        className="animate-spin h-5 w-5 mr-2 text-black"
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
                         viewBox="0 0 24 24"
@@ -706,12 +708,12 @@ export default function FundDetail() {
               </p>
               <button
                 onClick={handleManualLaunch}
-                className="w-full bg-purple-500 hover:bg-purple-600 text-white p-2 rounded flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
+                className="w-full border border-black bg-white text-black p-2 rounded flex items-center justify-center transition-colors duration-200 hover:bg-black hover:text-white hover:border-white disabled:bg-gray-400 disabled:text-gray-700 disabled:border-gray-400 disabled:cursor-not-allowed"
                 disabled={launching || !imageUrl}
               >
                 {launching ? (
                   <svg
-                    className="animate-spin h-5 w-5 mr-2 text-white"
+                    className="animate-spin h-5 w-5 mr-2 text-black"
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"
@@ -748,12 +750,12 @@ export default function FundDetail() {
                   </p>
                   <button
                     onClick={handleManualTransfer}
-                    className="w-full bg-blue-500 hover:bg-blue-600 text-white p-2 rounded flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    className="w-full border border-black bg-white text-black p-2 rounded flex items-center justify-center transition-colors duration-200 hover:bg-black hover:text-white hover:border-white disabled:bg-gray-400 disabled:text-gray-700 disabled:border-gray-400 disabled:cursor-not-allowed"
                     disabled={transferring}
                   >
                     {transferring ? (
                       <svg
-                        className="animate-spin h-5 w-5 mr-2 text-white"
+                        className="animate-spin h-5 w-5 mr-2 text-black"
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
                         viewBox="0 0 24 24"

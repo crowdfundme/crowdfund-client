@@ -96,6 +96,17 @@ export default function Header() {
     setIsWalletMenuOpen(false);
   };
 
+  const handleCreateClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!connected) {
+      e.preventDefault(); // Prevent navigation if not connected
+      console.log("Header: Create clicked, not connected - opening wallet modal");
+      setVisible(true);
+    } else {
+      console.log("Header: Create clicked, connected - navigating to /create-token");
+      // Allow default Link behavior (navigation to /create-token)
+    }
+  };
+
   const isActive = (href: string) => pathname === href;
 
   return (
@@ -119,13 +130,14 @@ export default function Header() {
           </a>
           <Link
             href="/create-token"
-            className={`hover:text-gray-600 font-medium ${isActive("/create-token") ? "text-gray-600" : "text-black"}`}
+            onClick={handleCreateClick}
+            className={`hover:text-gray-600 font-medium ${isActive("/create-token") ? "text-gray-600 underline" : "text-black"}`}
           >
             Create
           </Link>
           <Link
             href="/explore"
-            className={`hover:text-gray-600 font-medium ${isActive("/explore") ? "text-gray-600" : "text-black"}`}
+            className={`hover:text-gray-600 font-medium ${isActive("/explore") ? "text-gray-600 underline" : "text-black"}`}
           >
             Crowd
           </Link>
@@ -177,8 +189,9 @@ export default function Header() {
                 <li>
                   <Link
                     href="/create-token"
-                    className="block px-4 py-2 hover:bg-gray-100 text-black"
-                    onClick={() => setIsMobileMenuOpen(false)}
+                    onClick={handleCreateClick}
+                    className={`block px-4 py-2 hover:bg-gray-100 ${isActive("/create-token") ? "text-gray-600 underline" : "text-black"}`}
+                    onClickCapture={() => setIsMobileMenuOpen(false)}
                   >
                     Create
                   </Link>
@@ -186,7 +199,7 @@ export default function Header() {
                 <li>
                   <Link
                     href="/explore"
-                    className="block px-4 py-2 hover:bg-gray-100 text-black"
+                    className={`block px-4 py-2 hover:bg-gray-100 ${isActive("/explore") ? "text-gray-600 underline" : "text-black"}`}
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Crowd
