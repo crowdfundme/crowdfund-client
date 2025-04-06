@@ -159,7 +159,7 @@ export default function ActiveFundsPage() {
                 setState((prev) => ({ ...prev, page: newPage }));
               }}
               disabled={state.page === 1}
-              className="px-4 py-2 bg-gray-300 rounded disabled:opacity-50 hover:bg-gray-400"
+              className="px-4 py-2 border border-black bg-white text-black rounded hover:bg-black hover:text-white hover:border-white transition-colors duration-200 disabled:bg-gray-400 disabled:text-gray-700 disabled:border-gray-400 disabled:cursor-not-allowed"
             >
               Previous
             </button>
@@ -173,7 +173,7 @@ export default function ActiveFundsPage() {
                 setState((prev) => ({ ...prev, page: newPage }));
               }}
               disabled={state.page >= state.totalPages}
-              className="px-4 py-2 bg-gray-300 rounded disabled:opacity-50 hover:bg-gray-400"
+              className="px-4 py-2 border border-black bg-white text-black rounded hover:bg-black hover:text-white hover:border-white transition-colors duration-200 disabled:bg-gray-400 disabled:text-gray-700 disabled:border-gray-400 disabled:cursor-not-allowed"
             >
               Next
             </button>

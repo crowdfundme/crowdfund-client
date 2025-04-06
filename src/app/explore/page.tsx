@@ -54,13 +54,48 @@ export default function ExplorePage() {
       setSearchLoading(true);
       setError(null);
       console.log(`Searching funds with term: ${term}`);
-      const response = await axios.get(
-        `/api/backend/funds?search=${encodeURIComponent(term)}&page=1&limit=10`
+
+      // Search active funds
+      const activeResponse = await axios.get(
+        `/api/backend/funds?status=active&search=${encodeURIComponent(term)}&page=1&limit=10`
       );
-      console.log("Search results:", response.data);
-      setSearchResults(response.data.funds);
+      console.log("Active search results:", activeResponse.data);
+
+      // Search completed funds
+      const completedResponse = await axios.get(
+        `/api/backend/funds?status=completed&search=${encodeURIComponent(term)}&page=1&limit=10`
+      );
+      console.log("Completed search results:", completedResponse.data);
+
+      // Combine and deduplicate results
+      const combinedResults = [
+        ...activeResponse.data.funds,
+        ...completedResponse.data.funds,
+      ].reduce((unique: Fund[], fund: Fund) => {
+        if (!unique.some((f) => f._id === fund._id)) {
+          unique.push(fund);
+        }
+        return unique;
+      }, []);
+
+      // Sort results with proper type checking
+      const sortedResults = combinedResults.sort((a: Fund, b: Fund) => {
+        if (a.status === "completed" && b.status === "completed") {
+          const aDate = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+          const bDate = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+          return bDate - aDate;
+        }
+        if (a.status === "active" && b.status === "active") {
+          const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bDate - aDate;
+        }
+        return a.status === "completed" ? 1 : -1; // Completed funds after active
+      });
+
+      setSearchResults(sortedResults);
     } catch (error) {
-      console.error("Error calling /api/backend/funds:", error);
+      console.error("Error searching funds:", error);
       if (axios.isAxiosError(error) && error.response) {
         console.error("Server response:", error.response.data);
       }

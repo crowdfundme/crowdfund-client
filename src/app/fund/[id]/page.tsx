@@ -492,7 +492,7 @@ export default function FundDetail() {
             className="bg-white p-4 rounded-lg shadow-md flex flex-col w-full h-[800px] sm:h-[900px]"
             style={{ border: "0.5px solid black" }}
           >
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4"
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6"
             style={{ fontWeight: 300 }}
             >{fund.name}</h2>
             <div
@@ -541,7 +541,7 @@ export default function FundDetail() {
             {fund.userId.walletAddress === publicKey?.toBase58() && !imageUrl && imagePreview && (
               <button
                 onClick={handleImageUpload}
-                className="w-full border border-black bg-white text-black p-2 rounded flex items-center justify-center transition-colors duration-200 hover:bg-black hover:text-white hover:border-white disabled:bg-gray-400 disabled:text-gray-700 disabled:border-gray-400 disabled:cursor-not-allowed text-sm mt-4 mb-4"
+                className="w-full border border-black bg-white text-black p-2 rounded flex items-center justify-center transition-colors duration-200 hover:bg-black hover:text-white hover:border-white disabled:bg-gray-400 disabled:text-gray-700 disabled:border-gray-400 disabled:cursor-not-allowed text-sm mt-4 mb-6"
                 disabled={uploadingImage}
               >
                 {uploadingImage ? (
@@ -558,7 +558,7 @@ export default function FundDetail() {
                 {uploadingImage ? "Uploading..." : "Upload Image"}
               </button>
             )}
-            <div className="flex-1 flex flex-col space-y-2 text-sm text-gray-700 overflow-y-auto">
+            <div className="flex-1 flex flex-col space-y-4 text-sm text-gray-700">
               <p>
                 <span className="font-semibold">Ticker:</span> {fund.tokenSymbol}
               </p>
@@ -629,7 +629,7 @@ export default function FundDetail() {
               </div>
               {!isCompleted ? (
                 publicKey ? (
-                  <div className="flex flex-col space-y-2 mt-4">
+                  <div className="flex flex-col space-y-4 mt-4">
                     <h2 className="text-lg font-semibold">Donate to {fund.name}</h2>
                     <label htmlFor="donation-slider" className="block text-sm font-medium text-gray-700">
                       Donation Amount ({minDonation.toFixed(2)} - {maxDonation.toFixed(2)} SOL)
