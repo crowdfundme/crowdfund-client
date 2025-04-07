@@ -1,4 +1,4 @@
-// app/api/solana-rpc/route.ts
+// src/app/api/solana-rpc/route.ts
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -7,6 +7,7 @@ export async function GET() {
     const rpcUrl = network === "mainnet"
       ? process.env.SOLANA_RPC_LIVE_ENDPOINT
       : process.env.SOLANA_RPC_DEV_ENDPOINT;
+    const apiKey = process.env.API_KEY;
 
     if (!rpcUrl) {
       console.error(`[API] No RPC endpoint configured for ${network}`);
@@ -14,7 +15,7 @@ export async function GET() {
     }
 
     console.log(`[API] Serving RPC URL for ${network}: ${rpcUrl}`);
-    return NextResponse.json({ rpcUrl });
+    return NextResponse.json({ rpcUrl, apiKey });
   } catch (error) {
     console.error("[API] Error fetching RPC URL:", error);
     return NextResponse.json({ error: "Failed to fetch RPC URL" }, { status: 500 });

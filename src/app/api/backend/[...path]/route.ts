@@ -1,3 +1,4 @@
+// src/app/api/backend/[...path]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest, { params }: { params: { path: string[] } }) {
@@ -29,13 +30,13 @@ export async function POST(req: NextRequest, { params }: { params: { path: strin
   return handleRequest(req, url.toString(), body);
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { path: string[] } }) { // Added PUT handler
+export async function PUT(req: NextRequest, { params }: { params: { path: string[] } }) {
   const { path } = params;
   const url = new URL(`${process.env.API_URL}/${path.join("/")}`);
   req.nextUrl.searchParams.forEach((value, key) => url.searchParams.append(key, value));
   
   const contentType = req.headers.get("Content-Type") || "application/json";
-  const body = await req.text(); // Assuming JSON for PUT, adjust if needed
+  const body = await req.text();
   console.log(`[Proxy PUT] Forwarding to: ${url.toString()} with body:`, body);
 
   return handleRequest(req, url.toString(), body);
@@ -43,8 +44,11 @@ export async function PUT(req: NextRequest, { params }: { params: { path: string
 
 async function handleRequest(req: NextRequest, url: string, body?: Buffer | string) {
   try {
+    const clientHeaders = Object.fromEntries(req.headers.entries());
     const headers: Record<string, string> = {
       "Cache-Control": "no-cache",
+      "X-API-Key": clientHeaders["x-api-key"],
+      "X-From-Vercel": clientHeaders["x-from-vercel"] || "true",
     };
     const contentType = req.headers.get("Content-Type");
     if (contentType) {

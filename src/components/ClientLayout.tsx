@@ -1,5 +1,7 @@
+// src/app/ClientLayout.tsx
 "use client";
 
+import "../lib/axios"; // Import to apply the interceptor globally
 import Header from "./Header";
 import Footer from "./Footer";
 import { Toaster } from "sonner";
@@ -12,7 +14,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         {children}
       </main>
       <Footer />
-      <Toaster position="top-right" richColors /> {/* Centralized Toaster */}
+      <Toaster position="top-right" richColors />
     </div>
   );
 }
