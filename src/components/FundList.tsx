@@ -26,6 +26,9 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
   const [maxDonation, setMaxDonation] = useState<number>(10);
   const [error, setError] = useState<string | null>(null);
   const [imageUrls, setImageUrls] = useState<{ [key: string]: string }>({});
+  const [imageLoading, setImageLoading] = useState<{ [key: string]: boolean }>(
+    funds.reduce((acc, fund) => ({ ...acc, [fund._id]: true }), {}) // Initially all images are loading
+  );
 
   useEffect(() => {
     const fetchLimitsAndImages = async () => {
@@ -53,6 +56,11 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
           return acc;
         }, {});
         setImageUrls(urls);
+
+        // Once images are fetched, set loading to false for all funds
+        setImageLoading(
+          funds.reduce((acc, fund) => ({ ...acc, [fund._id]: false }), {})
+        );
       } catch (error) {
         console.error("Error calling /api/backend/funds/fee or /token-images:", error);
         if (axios.isAxiosError(error) && error.response) {
@@ -61,6 +69,11 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
         const errorMsg = "Failed to load donation limits or images. Using defaults.";
         setError(errorMsg);
         toast.error(errorMsg);
+
+        // Set loading to false even on error to avoid infinite spinners
+        setImageLoading(
+          funds.reduce((acc, fund) => ({ ...acc, [fund._id]: false }), {})
+        );
       }
     };
 
@@ -184,12 +197,13 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
   };
 
   return (
-    <div className="p-4">      
+    <div className="p-4">
       {error && <p className="text-red-500 mb-4 text-center text-sm">{error}</p>}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4">
         {funds.map((fund) => {
           const progress = Math.min((fund.currentDonatedSol / fund.targetSolAmount) * 100, 100);
           const imageUrl = imageUrls[fund._id];
+          const isImageLoading = imageLoading[fund._id]; // Check if this fund's image is still loading
           const fundStatus = status === "mixed" ? fund.status : status;
 
           return (
@@ -201,7 +215,30 @@ export default function FundList({ funds, status, onDonationSuccess }: FundListP
               <Link href={`/fund/${fund._id}`}>
                 <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">{fund.name}</h2>
               </Link>
-              {imageUrl ? (
+              {isImageLoading ? (
+                <div className="w-full h-36 sm:h-40 bg-gray-200 rounded-lg mb-4 flex items-center justify-center">
+                  <svg
+                    className="animate-spin h-8 w-8 text-gray-500"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    ></path>
+                  </svg>
+                </div>
+              ) : imageUrl ? (
                 <Image
                   src={imageUrl}
                   alt={fund.name}
