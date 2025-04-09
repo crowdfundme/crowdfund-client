@@ -116,6 +116,16 @@ export default function CreateFund() {
     setForm({ ...form, tokenSymbol: value.toUpperCase() });
   };
 
+  // New handler for description with 150 char limit
+  const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    if (value.length <= 150) {
+      setForm({ ...form, tokenDescription: value });
+    } else {
+      toast.error("Description must be 150 characters or fewer.");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!publicKey) {
@@ -354,10 +364,14 @@ export default function CreateFund() {
           <textarea
             placeholder="Enter description"
             value={form.tokenDescription}
-            onChange={(e) => setForm({ ...form, tokenDescription: e.target.value })}
+            onChange={handleDescriptionChange}
+            maxLength={150}
             className="block w-full p-2 border rounded-md h-32 resize-y focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             required
           />
+          <p className="text-gray-500 text-sm mt-1">
+            {form.tokenDescription.length}/150 characters
+          </p>
         </div>
 
         <div className="mb-4">

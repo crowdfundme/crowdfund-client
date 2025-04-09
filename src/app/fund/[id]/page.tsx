@@ -21,6 +21,7 @@ export default function FundDetail() {
   const [fund, setFund] = useState<Fund | null>(null);
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState<boolean>(true);
   const [donationAmount, setDonationAmount] = useState<number>(0.01);
   const [minDonation, setMinDonation] = useState<number>(0.01);
   const [maxDonation, setMaxDonation] = useState<number>(10);
@@ -35,11 +36,22 @@ export default function FundDetail() {
   const baseUrl = "/api/backend";
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Copy to clipboard function with type safety
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast.success("Copied to clipboard!");
+    }).catch((err) => {
+      toast.error("Failed to copy!");
+      console.error("Copy error:", err);
+    });
+  };
+
   useEffect(() => {
     const fetchFundAndLimits = async () => {
       try {
         setLoading(true);
         setError(null);
+        setImageLoading(true);
         logInfo(`Fetching fund details for ID: ${id}`);
 
         const limitsUrl = `${baseUrl}/funds/fee`;
@@ -71,7 +83,11 @@ export default function FundDetail() {
           } catch (imgErr) {
             logInfo("Failed to fetch image:", imgErr);
             setImageUrl(null);
+          } finally {
+            setImageLoading(false);
           }
+        } else {
+          setImageLoading(false);
         }
 
         if (fundData.status === "completed" && fundData.tokenAddress) {
@@ -129,7 +145,11 @@ export default function FundDetail() {
                 } catch (imgErr) {
                   logInfo("Fallback: Failed to fetch image:", imgErr);
                   setImageUrl(null);
+                } finally {
+                  setImageLoading(false);
                 }
+              } else {
+                setImageLoading(false);
               }
 
               if (foundFund.status === "completed" && foundFund.tokenAddress) {
@@ -470,16 +490,16 @@ export default function FundDetail() {
     : 0;
 
   return (
-    <div className="flex flex-col items-center p-4 sm:p-6 min-h-screen">      
+    <div className="flex flex-col items-center p-4 sm:p-6 min-h-screen">
       {loading && <p className="text-gray-600 mb-4">Loading fund details...</p>}
       {error && <p className="text-red-500 mb-4">{error}</p>}
 
       {fund ? (
         <div className="w-full max-w-2xl">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-0"
-            style={{ fontWeight: 300 }}
-            >Fund Details</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-0" style={{ fontWeight: 300 }}>
+              Fund Details
+            </h1>
             <button
               onClick={handleBack}
               className="border border-black bg-white text-black px-3 py-1 sm:px-4 sm:py-2 rounded hover:bg-black hover:text-white hover:border-white transition-colors duration-200 text-sm sm:text-base w-full sm:w-auto"
@@ -491,9 +511,9 @@ export default function FundDetail() {
             className="bg-white p-4 rounded-lg shadow-md flex flex-col w-full h-[800px] sm:h-[900px]"
             style={{ border: "0.5px solid black" }}
           >
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6"
-            style={{ fontWeight: 300 }}
-            >{fund.name}</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6" style={{ fontWeight: 300 }}>
+              {fund.name}
+            </h2>
             <div
               className={`w-full h-40 sm:h-48 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden ${
                 fund.userId.walletAddress === publicKey?.toBase58() && !imageUrl
@@ -502,7 +522,28 @@ export default function FundDetail() {
               }`}
               onClick={handleImageClick}
             >
-              {imageUrl ? (
+              {imageLoading ? (
+                <svg
+                  className="animate-spin h-8 w-8 text-gray-500"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  ></path>
+                </svg>
+              ) : imageUrl ? (
                 <Image
                   src={imageUrl}
                   alt={fund.name}
@@ -600,23 +641,101 @@ export default function FundDetail() {
                 {(fund.currentDonatedSol / fund.targetSolAmount * fund.targetPercentage).toFixed(2)}% (Target:{" "}
                 {fund.targetPercentage}%)
               </p>
-              <p>
+              <p className="flex items-center space-x-2">
                 <span className="font-semibold">Supply Wallet:</span>{" "}
-                {fund.fundWalletAddress.slice(0, 4)}...{fund.fundWalletAddress.slice(-4)}
+                <span>{fund.fundWalletAddress.slice(0, 4)}...{fund.fundWalletAddress.slice(-4)}</span>
+                <button
+                  onClick={() => copyToClipboard(fund.fundWalletAddress)}
+                  className="text-blue-500 hover:text-blue-700 focus:outline-none"
+                  title="Copy Supply Wallet Address"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                    />
+                  </svg>
+                </button>
               </p>
-              <p>
+              <p className="flex items-center space-x-2">
                 <span className="font-semibold">Crowd Wallet:</span>{" "}
-                {fund.targetWallet.slice(0, 4)}...{fund.targetWallet.slice(-4)}
+                <span>{fund.targetWallet.slice(0, 4)}...{fund.targetWallet.slice(-4)}</span>
+                <button
+                  onClick={() => copyToClipboard(fund.targetWallet)}
+                  className="text-blue-500 hover:text-blue-700 focus:outline-none"
+                  title="Copy Crowd Wallet Address"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                    />
+                  </svg>
+                </button>
               </p>
               <p>
                 <span className="font-semibold">Donations:</span> {progress.toFixed(2)}% (
                 {fund.currentDonatedSol.toFixed(2)}/{fund.targetSolAmount.toFixed(2)} SOL)
               </p>
-              {fund.status === "completed" && fund.tokenAddress && (
-                <p>
-                  <span className="font-semibold">Token Address:</span>{" "}
-                  {fund.tokenAddress.slice(0, 4)}...{fund.tokenAddress.slice(-4)}
-                </p>
+              {fund.status === "completed" && (
+                <>
+                  <p className="flex items-center space-x-2">
+                    <span className="font-semibold">Token Address:</span>{" "}
+                    {fund.tokenAddress ? (
+                      <>
+                        <span>{fund.tokenAddress.slice(0, 4)}...{fund.tokenAddress.slice(-4)}</span>
+                        <button
+                          onClick={() => fund.tokenAddress && copyToClipboard(fund.tokenAddress)} // Type guard
+                          className="text-blue-500 hover:text-blue-700 focus:outline-none"
+                          title="Copy Token Address"
+                        >
+                          <svg
+                            className="h-4 w-4"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                            />
+                          </svg>
+                        </button>
+                      </>
+                    ) : (
+                      "In Progress"
+                    )}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Solscan:</span>{" "}
+                    {fund.solscanUrl ? (
+                      <a href={fund.solscanUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+                        Link
+                      </a>
+                    ) : (
+                      "Unknown"
+                    )}
+                  </p>
+                </>
               )}
               {fund.status === "completed" && fund.launchError && (
                 <p className="text-sm text-red-500">
