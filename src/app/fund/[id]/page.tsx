@@ -722,7 +722,7 @@ export default function FundDetail() {
                         </button>
                       </>
                     ) : (
-                      "In Progress"
+                      "Unknown"
                     )}
                   </p>
                   <p>
