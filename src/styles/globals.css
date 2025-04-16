@@ -1,0 +1,163 @@
+/* src/styles/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f3f4f6; /* Gray-100 */
+  --foreground: #111827; /* Gray-900 */
+  --font-fira-code: "Fira Code", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #1f2937; /* Gray-800 */
+    --foreground: #e5e7eb; /* Gray-200 */
+  }
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-fira-code), monospace;
+}
+
+/* Ensure root layout takes full space */
+body > div {
+  min-height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sidebar responsiveness */
+@media (max-width: 768px) {
+  aside {
+    display: none;
+  }
+  main {
+    width: 100%;
+    border-radius: 0;
+  }
+}
+
+/* Solana-themed wallet button */
+button.solana-wallet-button {
+  background: linear-gradient(90deg, #9945FF 0%, #14F195 100%) !important;
+  color: white !important;
+  font-weight: 700 !important;
+  padding: 0.75rem 1.5rem !important;
+  border-radius: 0.5rem !important;
+  font-size: 1rem !important;
+  height: 2.75rem !important;
+  width: auto !important;
+  max-width: 220px !important;
+  line-height: 1.25rem !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: none !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+  cursor: pointer !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+button.solana-wallet-button:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 7px 14px rgba(0, 0, 0, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08) !important;
+}
+
+button.solana-wallet-button:active {
+  transform: translateY(0) !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+button.solana-wallet-button:disabled {
+  background: linear-gradient(90deg, #666 0%, #999 100%) !important;
+  cursor: not-allowed !important;
+  opacity: 0.7 !important;
+}
+
+/* Existing modal styles */
+.wallet-adapter-modal {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 1000 !important;
+  background: rgba(0, 0, 0, 0.75) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.wallet-adapter-modal-wrapper {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: 100% !important;
+  max-width: 360px !important;
+  height: auto !important;
+}
+
+.wallet-adapter-modal-content {
+  background: #1f2937 !important;
+  border-radius: 1rem !important;
+  padding: 1rem !important;
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2) !important;
+  width: 100% !important;
+  max-width: 360px !important;
+  max-height: 400px !important;
+  overflow-y: auto !important;
+  position: relative !important;
+  z-index: 1001 !important;
+}
+
+.wallet-adapter-modal-title {
+  color: #e5e7eb !important;
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 1rem !important;
+  text-align: center !important;
+}
+
+.wallet-adapter-modal-list {
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  max-height: 300px !important;
+  overflow-y: auto !important;
+}
+
+.wallet-adapter-modal-list-item {
+  display: flex !important;
+  align-items: center !important;
+  padding: 0.75rem !important;
+  border-radius: 0.5rem !important;
+  cursor: pointer !important;
+  transition: background-color 0.2s ease !important;
+}
+
+.wallet-adapter-modal-list-item:hover {
+  background-color: #374151 !important;
+}
+
+.wallet-adapter-modal-list-item img {
+  width: 24px !important;
+  height: 24px !important;
+  margin-right: 1rem !important;
+}
+
+.wallet-adapter-modal-list-item span {
+  color: #e5e7eb !important;
+  font-size: 1rem !important;
+}
